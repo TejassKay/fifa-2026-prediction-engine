@@ -41,8 +41,6 @@ def handle_missing_values(df):
     df['rank_diff'] = df['rank_diff'].fillna(0)
     df['home_fifa_points'] = df['home_fifa_points'].fillna(0)
     df['away_fifa_points'] = df['away_fifa_points'].fillna(0)
-    df['h2h_matches_played'] = df['h2h_matches_played'].fillna(0)
-    df['h2h_home_win_rate'] = df['h2h_home_win_rate'].fillna(0)
     df['h2h_avg_goals_home'] = df['h2h_avg_goals_home'].fillna(0)
     df['h2h_avg_goals_away'] = df['h2h_avg_goals_away'].fillna(0)
     
@@ -309,9 +307,9 @@ def main():
     fitted_models = {}
     
     models = [
-        ('Random Forest', create_rf_objective, RandomForestRegressor),
+        # ('Random Forest', create_rf_objective, RandomForestRegressor),
         ('XGBoost', create_xgb_objective, XGBRegressor),
-        ('LightGBM', create_lgb_objective, LGBMRegressor)
+        # ('LightGBM', create_lgb_objective, LGBMRegressor)
     ]
     
     for name, obj_creator, cls in models:
@@ -341,6 +339,15 @@ def main():
     print("\nSaving best tuned model...")
     joblib.dump(best_h, "tuned_best_model_home.joblib")
     joblib.dump(best_a, "tuned_best_model_away.joblib")
+    
+    print("\nSaving feature importances...")
+    features = d['features']
+    feat_imp_h = pd.Series(best_h.feature_importances_, index=features).sort_values(ascending=False)
+    feat_imp_a = pd.Series(best_a.feature_importances_, index=features).sort_values(ascending=False)
+    
+    feat_imp_h.to_csv("feature_importance_home.csv")
+    feat_imp_a.to_csv("feature_importance_away.csv")
+    
     print("Done!")
 
 if __name__ == "__main__":

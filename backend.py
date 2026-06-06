@@ -6,6 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from collections import defaultdict
 from scipy.stats import poisson
+import json
+from datetime import datetime
 
 app = FastAPI(title="FIFA 2026 Prediction API")
 
@@ -57,6 +59,22 @@ def load_data():
             {"year": 2022, "xgb_brier": 0.52, "elo_brier": 0.64, "xgb_acc": 0.63, "elo_acc": 0.42},
         ]
     }
+    
+    import json
+    try:
+        with open("Dataset/player_intelligence.json", "r") as f:
+            DATA["players"] = json.load(f)
+    except Exception as e:
+        print(f"Could not load player intelligence: {e}")
+        DATA["players"] = {}
+
+    # Load squads data for Squad Explorer
+    try:
+        with open("Dataset/squads.json", "r") as f:
+            DATA["squads"] = json.load(f)
+    except Exception as e:
+        print(f"Could not load squads data: {e}")
+        DATA["squads"] = []
     
     # Load ELO map for basic stats
     try:
@@ -124,6 +142,7 @@ def load_data():
                 "teams": team_data
             })
         DATA["structured_groups"] = structured_groups
+        DATA["schedule"] = schedule.to_dict(orient="records")
     except Exception as e:
         print(f"Could not load groups schedule: {e}")
         DATA["structured_groups"] = []
@@ -165,6 +184,167 @@ def get_team_stats(team_id: str):
         },
         "progression": team_data
     }
+
+@app.get("/api/teams")
+def get_all_teams():
+    squads = DATA.get("squads", [])
+    teams = [s["team"] for s in squads]
+    return sorted(teams)
+
+@app.get("/api/teams/{team_id}/squad")
+def get_team_squad(team_id: str):
+    squads = DATA.get("squads", [])
+    players_db = DATA.get("players", {})
+    
+    team = next((s for s in squads if s["team"].lower() == team_id.lower()), None)
+    if team:
+        # Call the existing stats method to get progression and fifa rank
+        stats = get_team_stats(team["team"])
+        
+        rich_team = {
+            "team": team["team"],
+            "country_code": team["country_code"],
+            "coach": team.get("coach", ""),
+            "stats": stats,
+            "players": []
+        }
+        for p in team["players"]:
+            p_name = p.get("name")
+            intel = players_db.get(p_name, {})
+            # Merge base squad data with intelligence metrics
+            merged = {**p, **intel}
+            rich_team["players"].append(merged)
+        return rich_team
+    return {"error": "Team not found"}
+
+@app.get("/api/players/{player_name}")
+def get_player(player_name: str):
+    # Try intelligence DB first
+    players = DATA.get("players", {})
+    if player_name in players:
+        return players[player_name]
+        
+    # Fallback to loose matching
+    search_parts = player_name.lower().split()
+    for name, p_data in players.items():
+        name_lower = name.lower()
+        if all(part in name_lower for part in search_parts):
+            return p_data
+            
+    return {"error": "Player not found"}
+
+def calc_age(dob_str):
+    if not dob_str: return 99
+    try:
+        parts = dob_str.split("/")
+        return 2026 - int(parts[2]) # World Cup is in 2026
+    except:
+        return 99
+
+@app.get("/api/stars")
+def get_stars():
+    players = list(DATA.get("players", {}).values())
+    if not players: return {}
+    
+    superstars = sorted(players, key=lambda x: x["mvp_score"], reverse=True)[:10]
+    
+    young = [p for p in players if calc_age(p.get("dob")) <= 21]
+    young_stars = sorted(young, key=lambda x: x["mvp_score"], reverse=True)[:10]
+    
+    valuable_players = sorted(players, key=lambda x: x["market_value"], reverse=True)
+    xi = {"GK": [], "DF": [], "MF": [], "FW": []}
+    limits = {"GK": 1, "DF": 4, "MF": 3, "FW": 3}
+    for p in valuable_players:
+        pos = p["position"]
+        if pos in xi and len(xi[pos]) < limits[pos]:
+            xi[pos].append(p)
+    most_valuable_xi = xi["GK"] + xi["DF"] + xi["MF"] + xi["FW"]
+    
+    return {
+        "superstars": superstars,
+        "young_stars": young_stars,
+        "most_valuable_xi": most_valuable_xi
+    }
+
+@app.get("/api/golden-boot")
+def get_golden_boot():
+    players = list(DATA.get("players", {}).values())
+    forwards = [p for p in players if p["position"] == "FW"]
+    ranked = sorted(forwards, key=lambda x: x["form_score"] + (x["international_goals"] * 0.5), reverse=True)[:20]
+    results = []
+    for p in ranked:
+        p_copy = p.copy()
+        p_copy["predicted_goals"] = max(1, min(7, round((p["form_score"] * 0.4) + (p["international_goals"] * 0.05))))
+        results.append(p_copy)
+    return results
+
+@app.get("/api/golden-ball")
+def get_golden_ball():
+    players = list(DATA.get("players", {}).values())
+    ranked = sorted(players, key=lambda x: x["mvp_score"], reverse=True)[:20]
+    results = []
+    for p in ranked:
+        p_copy = p.copy()
+        p_copy["narrative"] = f"{p['name']} enters the tournament in elite form with a massive impact score of {p['mvp_score']:.1f}, making him the most crucial piece of {p['team']}'s tactical setup."
+        results.append(p_copy)
+    return results
+
+@app.get("/api/best-young-player")
+def get_best_young_player():
+    players = list(DATA.get("players", {}).values())
+    young = [p for p in players if calc_age(p.get("dob")) <= 23]
+    return sorted(young, key=lambda x: x["mvp_score"], reverse=True)[:15]
+
+@app.get("/api/breakout-stars")
+def get_breakout_stars():
+    players = list(DATA.get("players", {}).values())
+    candidates = [p for p in players if p["market_value"] < 40000000 and p["form_score"] > 7.5]
+    return sorted(candidates, key=lambda x: x["form_score"] / max(1, x["market_value"]/1000000), reverse=True)[:15]
+
+@app.get("/api/valuable-xi")
+def get_valuable_xi():
+    players = list(DATA.get("players", {}).values())
+    valuable = sorted(players, key=lambda x: x["market_value"], reverse=True)
+    xi = {"GK": [], "DF": [], "MF": [], "FW": []}
+    limits = {"GK": 1, "DF": 4, "MF": 3, "FW": 3}
+    for p in valuable:
+        pos = p["position"]
+        if pos in xi and len(xi[pos]) < limits[pos]:
+            xi[pos].append(p)
+    
+    total_value = sum(p["market_value"] for pos in xi.values() for p in pos)
+    
+    return {
+        "squad": xi,
+        "total_value": total_value
+    }
+
+@app.get("/api/all-team-mvps")
+def get_all_team_mvps():
+    players = list(DATA.get("players", {}).values())
+    from collections import defaultdict
+    teams_map = defaultdict(list)
+    for p in players:
+        teams_map[p["team"]].append(p)
+        
+    results = []
+    for team, t_players in teams_map.items():
+        if not t_players:
+            continue
+            
+        ranked = sorted(t_players, key=lambda x: x["mvp_score"], reverse=True)
+        young = [p for p in t_players if calc_age(p.get("dob")) <= 23]
+        emerging = sorted(young, key=lambda x: x["form_score"], reverse=True)[0] if young else None
+        valuable = sorted(t_players, key=lambda x: x["market_value"], reverse=True)[0]
+        
+        results.append({
+            "team": team,
+            "mvp": ranked[0],
+            "breakout": emerging,
+            "highest_value": valuable
+        })
+    return sorted(results, key=lambda x: x["mvp"]["mvp_score"], reverse=True)
+
 
 @app.get("/api/analytics")
 def get_analytics():
@@ -226,6 +406,258 @@ def get_bracket():
         return {}
     from bracket_engine import build_bracket
     return build_bracket(groups, DATA.get("lambda_lookup", {}), DATA.get("champions", []))
+
+@app.get("/api/intelligence/storylines")
+def get_storylines():
+    champs = DATA.get("champions", [])
+    team_features = DATA.get("team_features", {})
+    
+    storylines = []
+    
+    arg = next((c for c in champs if c["team"] == "Argentina"), None)
+    if arg:
+        storylines.append({
+            "title": "Can Argentina Repeat?",
+            "team": "Argentina",
+            "description": f"With a {arg['champion_probability']*100:.1f}% chance to win it all, the reigning champions are looking to cement their legacy.",
+            "type": "favorite"
+        })
+        
+    fra = next((c for c in champs if c["team"] == "France"), None)
+    if fra:
+        storylines.append({
+            "title": "France's Revenge Tour",
+            "team": "France",
+            "description": f"After heartbreak in 2022, France returns with a massive {fra['final_probability']*100:.1f}% chance to reach the final.",
+            "type": "revenge"
+        })
+        
+    for c in champs:
+        t = c["team"]
+        if t in ["Argentina", "France"]: continue
+        t_rank = team_features.get(t, {}).get("fifa_rank", 50)
+        c_prob = c.get("quarter_final_probability", 0)
+        
+        if t_rank > 15 and c_prob > 0.2:
+            storylines.append({
+                "title": f"{t}'s Breakthrough Opportunity",
+                "team": t,
+                "description": f"Ranked #{t_rank} in the world, {t} has a surprising {c_prob*100:.1f}% chance to make a deep run to the quarter-finals.",
+                "type": "dark_horse"
+            })
+            
+    return storylines[:5]
+
+@app.get("/api/fixtures/upcoming")
+def get_upcoming_fixtures():
+    schedule = DATA.get("schedule", [])
+    if not schedule:
+        return []
+    
+    matches = schedule[:5]
+    results = []
+    for match in matches:
+        req = MatchRequest(home_team=match["team_a"], away_team=match["team_b"])
+        pred = predict_match(req)
+        results.append({
+            "id": str(match.get("match_number", "1")),
+            "date": match.get("date", "2026-06-11"),
+            "time_local": match.get("time_local"),
+            "venue": match.get("venue", "Estadio Azteca"),
+            "home_team": match["team_a"],
+            "away_team": match["team_b"],
+            "prediction": pred
+        })
+    return results
+
+@app.get("/api/match/{match_id}")
+def get_match_details(match_id: str):
+    schedule = DATA.get("schedule", [])
+    match = next((m for m in schedule if str(m.get("match_number")) == match_id), None)
+    if not match:
+        return {"error": "Match not found"}
+
+    home = match["team_a"]
+    away = match["team_b"]
+    
+    req = MatchRequest(home_team=home, away_team=away)
+    pred = predict_match(req)
+    
+    players = list(DATA.get("players", {}).values())
+    home_players = sorted([p for p in players if p.get("team") == home], key=lambda x: x.get("mvp_score", 0), reverse=True)[:3]
+    away_players = sorted([p for p in players if p.get("team") == away], key=lambda x: x.get("mvp_score", 0), reverse=True)[:3]
+    
+    storylines = DATA.get("storylines", [])
+    match_stories = [s for s in storylines if home in s["title"] or away in s["title"] or home in s["description"] or away in s["description"]]
+    
+    if pred["probabilities"]["home_win"] > 0.6:
+        story_text = f"The overwhelming favorite {home} will look to stamp their authority against {away}. With a dominant squad, they are heavily backed to secure all points."
+    elif pred["probabilities"]["away_win"] > 0.6:
+        story_text = f"{away} enter this clash as clear favorites. {home} will need a monumental defensive effort to pull off an upset here."
+    elif abs(pred["probabilities"]["home_win"] - pred["probabilities"]["away_win"]) < 0.15:
+        story_text = f"A fiercely contested battle awaits as {home} and {away} match up evenly. This could go down to the wire, with both sides desperate for a result."
+    else:
+        fav = home if pred["probabilities"]["home_win"] > pred["probabilities"]["away_win"] else away
+        und = away if fav == home else home
+        story_text = f"{fav} holds the upper hand on paper, but {und} have the quality to make this a difficult 90 minutes. A fascinating tactical battle awaits."
+
+    group = match.get("group", "")
+    group_data = []
+    if match.get("stage") == "Group Stage" and group:
+        for g in DATA.get("structured_groups", []):
+            if g.get("group") == group:
+                group_data = g.get("teams", [])
+                break
+                
+    champions = DATA.get("champions", [])
+    home_prog = next((c for c in champions if c["team"] == home), {})
+    away_prog = next((c for c in champions if c["team"] == away), {})
+    
+    return {
+        "id": match_id,
+        "date": match.get("date"),
+        "time_local": match.get("time_local"),
+        "venue": match.get("venue"),
+        "stage": match.get("stage"),
+        "group": group,
+        "home_team": home,
+        "away_team": away,
+        "prediction": pred,
+        "key_players": {
+            "home": home_players,
+            "away": away_players
+        },
+        "story": {
+            "narrative": story_text,
+            "related_storylines": match_stories
+        },
+        "group_impact": group_data,
+        "road_to_glory": {
+            "home": home_prog,
+            "away": away_prog
+        }
+    }
+
+@app.get("/api/team-identity/{team}")
+def get_team_identity(team: str):
+    nicknames = {
+        "Argentina": "La Albiceleste",
+        "France": "Les Bleus",
+        "Brazil": "Seleção",
+        "England": "The Three Lions",
+        "Spain": "La Roja",
+        "Germany": "Die Mannschaft",
+        "Portugal": "A Seleção",
+        "Netherlands": "Oranje",
+        "Italy": "Gli Azzurri",
+        "USA": "The Stars and Stripes",
+        "Mexico": "El Tri"
+    }
+    
+    players = list(DATA.get("players", {}).values())
+    team_players = [p for p in players if p["team"].lower() == team.lower()]
+    
+    mvp = None
+    breakout = None
+    
+    if team_players:
+        ranked = sorted(team_players, key=lambda x: x["mvp_score"], reverse=True)
+        mvp = ranked[0]["name"]
+        
+        young = [p for p in team_players if calc_age(p.get("dob")) <= 23]
+        if young:
+            breakout = sorted(young, key=lambda x: x["mvp_score"], reverse=True)[0]["name"]
+            
+    champs = DATA.get("champions", [])
+    team_data = next((t for t in champs if t["team"].lower() == team.lower()), None)
+    
+    expected_finish = "Group Stage"
+    if team_data:
+        if team_data["champion_probability"] > 0.05: expected_finish = "Champion Contender"
+        elif team_data["final_probability"] > 0.05: expected_finish = "Finalist"
+        elif team_data["semi_final_probability"] > 0.1: expected_finish = "Semi-Finals"
+        elif team_data["quarter_final_probability"] > 0.2: expected_finish = "Quarter-Finals"
+        elif team_data["round_of_32_probability"] > 0.5: expected_finish = "Knockout Stage"
+        
+    threat = "Unknown"
+    groups = DATA.get("structured_groups", [])
+    for g in groups:
+        teams = [t["team"] for t in g["teams"]]
+        if team in teams:
+            threats = [t for t in g["teams"] if t["team"] != team]
+            if threats:
+                threats.sort(key=lambda x: x["elo"], reverse=True)
+                threat = threats[0]["team"]
+            break
+            
+    return {
+        "team": team,
+        "nickname": nicknames.get(team, "The National Team"),
+        "most_important_player": mvp or "Unknown",
+        "breakout_player": breakout or "None",
+        "expected_finish": expected_finish,
+        "biggest_threat": threat
+    }
+
+
+@app.get("/api/intelligence/upsets")
+def get_upsets():
+    groups = DATA.get("structured_groups", [])
+    upsets = []
+    
+    for g in groups:
+        teams = g["teams"]
+        for i in range(len(teams)):
+            for j in range(i+1, len(teams)):
+                t1 = teams[i]["team"]
+                t2 = teams[j]["team"]
+                e1 = teams[i]["elo"]
+                e2 = teams[j]["elo"]
+                
+                prob_1_wins = 1 / (1 + 10**((e2 - e1)/400))
+                prob_2_wins = 1 - prob_1_wins
+                
+                if e1 - e2 > 100:
+                    if prob_2_wins > 0.15:
+                        upsets.append({
+                            "match": f"{t2} vs {t1}",
+                            "underdog": t2,
+                            "favorite": t1,
+                            "upset_prob": float(prob_2_wins),
+                            "reason": f"{t2}'s gritty playstyle gives them a strong {int(prob_2_wins*100)}% chance to shock the heavily favored {t1}."
+                        })
+                elif e2 - e1 > 100:
+                    if prob_1_wins > 0.15:
+                        upsets.append({
+                            "match": f"{t1} vs {t2}",
+                            "underdog": t1,
+                            "favorite": t2,
+                            "upset_prob": float(prob_1_wins),
+                            "reason": f"{t1}'s gritty playstyle gives them a strong {int(prob_1_wins*100)}% chance to shock the heavily favored {t2}."
+                        })
+                        
+    upsets = sorted(upsets, key=lambda x: x["upset_prob"], reverse=True)[:5]
+    return upsets
+
+@app.get("/api/intelligence/finals")
+def get_finals():
+    champs = DATA.get("champions", [])
+    finals = []
+    top_teams = sorted(champs, key=lambda x: x["final_probability"], reverse=True)[:15]
+    
+    for i in range(len(top_teams)):
+        for j in range(i+1, len(top_teams)):
+            t1 = top_teams[i]
+            t2 = top_teams[j]
+            prob = t1["final_probability"] * t2["final_probability"] * 2 
+            finals.append({
+                "team_a": t1["team"],
+                "team_b": t2["team"],
+                "probability": float(prob)
+            })
+            
+    finals = sorted(finals, key=lambda x: x["probability"], reverse=True)[:10]
+    return finals
 
 if __name__ == "__main__":
     import uvicorn

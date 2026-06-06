@@ -90,24 +90,50 @@ def generate_frozen_features(start_date, wc_matches_df):
     df_pred = pd.merge(df_pred, shootout_stats.rename(columns={"team": "home_team", "shootout_total_prior": "home_shootout_count", "shootout_win_rate_prior": "home_shootout_win_rate"}), on="home_team", how="left").fillna({'home_shootout_count':0, 'home_shootout_win_rate':0})
     df_pred = pd.merge(df_pred, shootout_stats.rename(columns={"team": "away_team", "shootout_total_prior": "away_shootout_count", "shootout_win_rate_prior": "away_shootout_win_rate"}), on="away_team", how="left").fillna({'away_shootout_count':0, 'away_shootout_win_rate':0})
 
+    df_hist = pd.merge_asof(df_hist, df_e_clean.rename(columns={"team": "home_team", "rating": "home_elo_pre", "elo_date": "date"}), on="date", by="home_team", direction="backward")
+    df_hist = pd.merge_asof(df_hist, df_e_clean.rename(columns={"team": "away_team", "rating": "away_elo_pre", "elo_date": "date"}), on="date", by="away_team", direction="backward")
+    df_hist = pd.merge_asof(df_hist, df_rank.rename(columns={"team": "home_team", "rank": "home_fifa_rank", "total.points": "home_fifa_points", "rank_date": "date"}), on="date", by="home_team", direction="backward", tolerance=pd.Timedelta("730 days"))
+    df_hist = pd.merge_asof(df_hist, df_rank.rename(columns={"team": "away_team", "rank": "away_fifa_rank", "total.points": "away_fifa_points", "rank_date": "date"}), on="date", by="away_team", direction="backward", tolerance=pd.Timedelta("730 days"))
+
     tm = pd.concat([
-        df_hist[["date", "home_team", "home_score", "away_score"]].rename(columns={"home_team": "team", "home_score": "scored", "away_score": "conceded"}),
-        df_hist[["date", "away_team", "away_score", "home_score"]].rename(columns={"away_team": "team", "away_score": "scored", "home_score": "conceded"})
+        df_hist[["date", "home_team", "home_score", "away_score", "away_elo_pre", "away_fifa_rank"]].rename(columns={"home_team": "team", "home_score": "scored", "away_score": "conceded", "away_elo_pre": "opponent_elo", "away_fifa_rank": "opponent_fifa_rank"}),
+        df_hist[["date", "away_team", "away_score", "home_score", "home_elo_pre", "home_fifa_rank"]].rename(columns={"away_team": "team", "away_score": "scored", "home_score": "conceded", "home_elo_pre": "opponent_elo", "home_fifa_rank": "opponent_fifa_rank"})
     ]).sort_values("date")
     tm["goal_diff"] = tm["scored"] - tm["conceded"]
     tm["win"] = (tm["scored"] > tm["conceded"]).astype(int)
+    tm["weighted_goal_diff"] = tm["goal_diff"] * (tm["opponent_elo"] / 1500.0)
 
     latest_stats = []
     for team in teams:
         t_hist = tm[tm['team'] == team].sort_values("date").tail(10)
         if len(t_hist) > 0:
             l5, l10 = t_hist.tail(5), t_hist
-            latest_stats.append({'team': team, 'goals_scored_avg_L5': l5['scored'].mean(), 'goals_conceded_avg_L5': l5['conceded'].mean(), 'win_rate_L10': l10['win'].mean(), 'goal_diff_avg_L10': l10['goal_diff'].mean()})
+            latest_stats.append({
+                'team': team, 'goals_scored_avg_L5': l5['scored'].mean(), 'goals_conceded_avg_L5': l5['conceded'].mean(),
+                'avg_opponent_elo_last_5': l5['opponent_elo'].mean(), 'avg_opponent_fifa_rank_last_5': l5['opponent_fifa_rank'].mean(), 'weighted_goal_diff_last_5': l5['weighted_goal_diff'].mean(),
+                'win_rate_L10': l10['win'].mean(), 'goal_diff_avg_L10': l10['goal_diff'].mean(),
+                'avg_opponent_elo_last_10': l10['opponent_elo'].mean(), 'avg_opponent_fifa_rank_last_10': l10['opponent_fifa_rank'].mean(), 'weighted_goal_diff_last_10': l10['weighted_goal_diff'].mean()
+            })
         else:
-            latest_stats.append({'team': team, 'goals_scored_avg_L5': 0, 'goals_conceded_avg_L5': 0, 'win_rate_L10': 0, 'goal_diff_avg_L10': 0})
+            latest_stats.append({
+                'team': team, 'goals_scored_avg_L5': 0, 'goals_conceded_avg_L5': 0,
+                'avg_opponent_elo_last_5': 0, 'avg_opponent_fifa_rank_last_5': 0, 'weighted_goal_diff_last_5': 0,
+                'win_rate_L10': 0, 'goal_diff_avg_L10': 0,
+                'avg_opponent_elo_last_10': 0, 'avg_opponent_fifa_rank_last_10': 0, 'weighted_goal_diff_last_10': 0
+            })
     stats_df = pd.DataFrame(latest_stats)
-    df_pred = pd.merge(df_pred, stats_df.rename(columns={'team': 'home_team', 'goals_scored_avg_L5': 'home_goals_scored_avg_L5', 'goals_conceded_avg_L5': 'home_goals_conceded_avg_L5', 'win_rate_L10': 'home_win_rate_L10', 'goal_diff_avg_L10': 'home_goal_diff_avg_L10'}), on="home_team", how="left")
-    df_pred = pd.merge(df_pred, stats_df.rename(columns={'team': 'away_team', 'goals_scored_avg_L5': 'away_goals_scored_avg_L5', 'goals_conceded_avg_L5': 'away_goals_conceded_avg_L5', 'win_rate_L10': 'away_win_rate_L10', 'goal_diff_avg_L10': 'away_goal_diff_avg_L10'}), on="away_team", how="left")
+    df_pred = pd.merge(df_pred, stats_df.rename(columns={
+        'team': 'home_team', 'goals_scored_avg_L5': 'home_goals_scored_avg_L5', 'goals_conceded_avg_L5': 'home_goals_conceded_avg_L5',
+        'avg_opponent_elo_last_5': 'home_avg_opponent_elo_last_5', 'avg_opponent_fifa_rank_last_5': 'home_avg_opponent_fifa_rank_last_5', 'weighted_goal_diff_last_5': 'home_weighted_goal_diff_last_5',
+        'win_rate_L10': 'home_win_rate_L10', 'goal_diff_avg_L10': 'home_goal_diff_avg_L10',
+        'avg_opponent_elo_last_10': 'home_avg_opponent_elo_last_10', 'avg_opponent_fifa_rank_last_10': 'home_avg_opponent_fifa_rank_last_10', 'weighted_goal_diff_last_10': 'home_weighted_goal_diff_last_10'
+    }), on="home_team", how="left")
+    df_pred = pd.merge(df_pred, stats_df.rename(columns={
+        'team': 'away_team', 'goals_scored_avg_L5': 'away_goals_scored_avg_L5', 'goals_conceded_avg_L5': 'away_goals_conceded_avg_L5',
+        'avg_opponent_elo_last_5': 'away_avg_opponent_elo_last_5', 'avg_opponent_fifa_rank_last_5': 'away_avg_opponent_fifa_rank_last_5', 'weighted_goal_diff_last_5': 'away_weighted_goal_diff_last_5',
+        'win_rate_L10': 'away_win_rate_L10', 'goal_diff_avg_L10': 'away_goal_diff_avg_L10',
+        'avg_opponent_elo_last_10': 'away_avg_opponent_elo_last_10', 'avg_opponent_fifa_rank_last_10': 'away_avg_opponent_fifa_rank_last_10', 'weighted_goal_diff_last_10': 'away_weighted_goal_diff_last_10'
+    }), on="away_team", how="left")
 
     h2h_map = defaultdict(list)
     for _, h in df_hist.iterrows():

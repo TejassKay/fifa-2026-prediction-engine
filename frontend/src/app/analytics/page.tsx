@@ -42,7 +42,7 @@ export default function AnalyticsPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-          <Card className="bg-black border-neutral-800 h-full">
+          <Card className="h-full">
             <CardHeader>
               <CardTitle>Feature Importances</CardTitle>
               <CardDescription>XGBoost global feature weightings.</CardDescription>
@@ -73,7 +73,7 @@ export default function AnalyticsPage() {
         </motion.div>
 
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-          <Card className="bg-black border-neutral-800">
+          <Card>
             <CardHeader>
               <CardTitle>Historical Backtest</CardTitle>
               <CardDescription>Brier Score comparison against ELO Baseline.</CardDescription>
@@ -97,7 +97,7 @@ export default function AnalyticsPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-black border-neutral-800">
+          <Card>
             <CardHeader>
               <CardTitle>Backtest Metrics</CardTitle>
             </CardHeader>

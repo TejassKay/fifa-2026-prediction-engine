@@ -1,14 +1,20 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Home, Users, Search, Trophy, LayoutGrid, Activity } from "lucide-react";
-import { motion } from "framer-motion";
+import { Home, Users, Search, Trophy, LayoutGrid, Activity, ClipboardList, Lightbulb, Star, ChevronLeft, ChevronRight, Calendar, TrendingUp } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import Logo from "@/components/Logo";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: Home },
-  { href: "/teams", label: "Team Explorer", icon: Users },
+  { href: "/fixtures", label: "Upcoming Fixtures", icon: Calendar },
+  { href: "/intelligence", label: "Intelligence Center", icon: Lightbulb },
+  { href: "/awards", label: "Awards Center", icon: Star },
+  { href: "/road-to-glory", label: "Road To Glory", icon: TrendingUp },
+  { href: "/squads", label: "Squad Explorer", icon: ClipboardList },
   { href: "/predictor", label: "Match Predictor", icon: Search },
   { href: "/bracket", label: "Knockout Bracket", icon: Trophy },
   { href: "/groups", label: "Group Stage", icon: LayoutGrid },
@@ -17,17 +23,28 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   return (
-    <aside className="w-64 bg-black border-r border-neutral-800 h-full flex flex-col hidden md:flex">
-      <div className="p-6">
-        <h1 className="text-xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent tracking-tight leading-tight">
-          FIFA 2026<br />Prediction Engine
-        </h1>
-        <p className="text-xs text-neutral-500 mt-2 font-mono uppercase tracking-wider">v2.0 Monte Carlo</p>
+    <motion.aside 
+      initial={false}
+      animate={{ width: isCollapsed ? 80 : 256 }} // w-20 = 80px, w-64 = 256px
+      className="glass-panel !rounded-none !border-y-0 !border-l-0 h-full flex-col hidden md:flex relative shrink-0 z-40"
+    >
+      <button 
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        className="absolute -right-3 top-8 bg-neutral-800 hover:bg-neutral-700 text-white p-1 rounded-full border border-neutral-600 z-50 transition-colors shadow-lg"
+      >
+        {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+      </button>
+
+      <div className="p-6 h-28 flex items-start relative overflow-hidden">
+        <AnimatePresence mode="wait">
+          <Logo isCollapsed={isCollapsed} />
+        </AnimatePresence>
       </div>
 
-      <nav className="flex-1 px-4 py-4 space-y-2">
+      <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto custom-scrollbar overflow-x-hidden">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
@@ -36,8 +53,10 @@ export function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              title={isCollapsed ? item.label : undefined}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all group relative",
+                "flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-all group relative",
+                isCollapsed ? "justify-center" : "gap-3",
                 isActive 
                   ? "text-white" 
                   : "text-neutral-400 hover:text-white hover:bg-neutral-900"
@@ -50,19 +69,30 @@ export function Sidebar() {
                   transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 />
               )}
-              <Icon className={cn("w-5 h-5", isActive ? "text-emerald-400" : "text-neutral-500 group-hover:text-neutral-300")} />
-              {item.label}
+              <Icon className={cn("w-5 h-5 shrink-0 transition-colors", isActive ? "text-emerald-400" : "text-neutral-500 group-hover:text-neutral-300")} />
+              <AnimatePresence>
+                {!isCollapsed && (
+                  <motion.span 
+                    initial={{ opacity: 0, width: 0 }}
+                    animate={{ opacity: 1, width: "auto" }}
+                    exit={{ opacity: 0, width: 0 }}
+                    className="whitespace-nowrap overflow-hidden"
+                  >
+                    {item.label}
+                  </motion.span>
+                )}
+              </AnimatePresence>
             </Link>
           );
         })}
       </nav>
 
-      <div className="p-6 border-t border-neutral-900">
+      <div className={cn("p-6 border-t border-neutral-900 flex justify-center overflow-hidden", isCollapsed ? "items-center" : "items-start")}>
         <div className="flex items-center gap-3">
-          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-xs text-neutral-400 font-mono">Engine Online</span>
+          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+          {!isCollapsed && <span className="text-xs text-neutral-400 font-mono whitespace-nowrap">Engine Online</span>}
         </div>
       </div>
-    </aside>
+    </motion.aside>
   );
 }

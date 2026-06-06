@@ -192,16 +192,17 @@ print("Computing rolling form features...")
 
 # Create a long format dataframe of all team appearances to calculate rolling stats
 team_matches = pd.concat([
-    df_base[["date", "match_id", "home_team", "home_score", "away_score"]].rename(
-        columns={"home_team": "team", "home_score": "scored", "away_score": "conceded"}
+    df_base[["date", "match_id", "home_team", "home_score", "away_score", "away_elo_pre", "away_fifa_rank"]].rename(
+        columns={"home_team": "team", "home_score": "scored", "away_score": "conceded", "away_elo_pre": "opponent_elo", "away_fifa_rank": "opponent_fifa_rank"}
     ).assign(is_home=1),
-    df_base[["date", "match_id", "away_team", "away_score", "home_score"]].rename(
-        columns={"away_team": "team", "away_score": "scored", "home_score": "conceded"}
+    df_base[["date", "match_id", "away_team", "away_score", "home_score", "home_elo_pre", "home_fifa_rank"]].rename(
+        columns={"away_team": "team", "away_score": "scored", "home_score": "conceded", "home_elo_pre": "opponent_elo", "home_fifa_rank": "opponent_fifa_rank"}
     ).assign(is_home=0)
 ]).sort_values("date").reset_index(drop=True)
 
 team_matches["goal_diff"] = team_matches["scored"] - team_matches["conceded"]
 team_matches["win"] = (team_matches["scored"] > team_matches["conceded"]).astype(int)
+team_matches["weighted_goal_diff"] = team_matches["goal_diff"] * (team_matches["opponent_elo"] / 1500.0)
 
 # Group by team and calculate rolling windows shifted by 1 to prevent leakage
 def get_rolling_stats(g):
@@ -210,10 +211,16 @@ def get_rolling_stats(g):
     # L5 Stats
     g["goals_scored_avg_L5"] = g["scored"].rolling(5, min_periods=1).mean().shift(1)
     g["goals_conceded_avg_L5"] = g["conceded"].rolling(5, min_periods=1).mean().shift(1)
+    g["avg_opponent_elo_last_5"] = g["opponent_elo"].rolling(5, min_periods=1).mean().shift(1)
+    g["avg_opponent_fifa_rank_last_5"] = g["opponent_fifa_rank"].rolling(5, min_periods=1).mean().shift(1)
+    g["weighted_goal_diff_last_5"] = g["weighted_goal_diff"].rolling(5, min_periods=1).mean().shift(1)
     
     # L10 Stats
     g["win_rate_L10"] = g["win"].rolling(10, min_periods=1).mean().shift(1)
     g["goal_diff_avg_L10"] = g["goal_diff"].rolling(10, min_periods=1).mean().shift(1)
+    g["avg_opponent_elo_last_10"] = g["opponent_elo"].rolling(10, min_periods=1).mean().shift(1)
+    g["avg_opponent_fifa_rank_last_10"] = g["opponent_fifa_rank"].rolling(10, min_periods=1).mean().shift(1)
+    g["weighted_goal_diff_last_10"] = g["weighted_goal_diff"].rolling(10, min_periods=1).mean().shift(1)
     
     return g
 
@@ -221,24 +228,36 @@ team_rolling = team_matches.groupby("team", group_keys=False).apply(get_rolling_
 
 # Merge back into df_base for home team
 df_base = df_base.merge(
-    team_rolling[team_rolling["is_home"] == 1][["match_id", "goals_scored_avg_L5", "goals_conceded_avg_L5", "win_rate_L10", "goal_diff_avg_L10"]]
+    team_rolling[team_rolling["is_home"] == 1][["match_id", "goals_scored_avg_L5", "goals_conceded_avg_L5", "avg_opponent_elo_last_5", "avg_opponent_fifa_rank_last_5", "weighted_goal_diff_last_5", "win_rate_L10", "goal_diff_avg_L10", "avg_opponent_elo_last_10", "avg_opponent_fifa_rank_last_10", "weighted_goal_diff_last_10"]]
     .rename(columns={
         "goals_scored_avg_L5": "home_goals_scored_avg_L5",
         "goals_conceded_avg_L5": "home_goals_conceded_avg_L5",
+        "avg_opponent_elo_last_5": "home_avg_opponent_elo_last_5",
+        "avg_opponent_fifa_rank_last_5": "home_avg_opponent_fifa_rank_last_5",
+        "weighted_goal_diff_last_5": "home_weighted_goal_diff_last_5",
         "win_rate_L10": "home_win_rate_L10",
-        "goal_diff_avg_L10": "home_goal_diff_avg_L10"
+        "goal_diff_avg_L10": "home_goal_diff_avg_L10",
+        "avg_opponent_elo_last_10": "home_avg_opponent_elo_last_10",
+        "avg_opponent_fifa_rank_last_10": "home_avg_opponent_fifa_rank_last_10",
+        "weighted_goal_diff_last_10": "home_weighted_goal_diff_last_10"
     }),
     on="match_id", how="left"
 )
 
 # Merge back into df_base for away team
 df_base = df_base.merge(
-    team_rolling[team_rolling["is_home"] == 0][["match_id", "goals_scored_avg_L5", "goals_conceded_avg_L5", "win_rate_L10", "goal_diff_avg_L10"]]
+    team_rolling[team_rolling["is_home"] == 0][["match_id", "goals_scored_avg_L5", "goals_conceded_avg_L5", "avg_opponent_elo_last_5", "avg_opponent_fifa_rank_last_5", "weighted_goal_diff_last_5", "win_rate_L10", "goal_diff_avg_L10", "avg_opponent_elo_last_10", "avg_opponent_fifa_rank_last_10", "weighted_goal_diff_last_10"]]
     .rename(columns={
         "goals_scored_avg_L5": "away_goals_scored_avg_L5",
         "goals_conceded_avg_L5": "away_goals_conceded_avg_L5",
+        "avg_opponent_elo_last_5": "away_avg_opponent_elo_last_5",
+        "avg_opponent_fifa_rank_last_5": "away_avg_opponent_fifa_rank_last_5",
+        "weighted_goal_diff_last_5": "away_weighted_goal_diff_last_5",
         "win_rate_L10": "away_win_rate_L10",
-        "goal_diff_avg_L10": "away_goal_diff_avg_L10"
+        "goal_diff_avg_L10": "away_goal_diff_avg_L10",
+        "avg_opponent_elo_last_10": "away_avg_opponent_elo_last_10",
+        "avg_opponent_fifa_rank_last_10": "away_avg_opponent_fifa_rank_last_10",
+        "weighted_goal_diff_last_10": "away_weighted_goal_diff_last_10"
     }),
     on="match_id", how="left"
 )
@@ -336,26 +355,31 @@ features_required = [
     
     "home_goals_scored_avg_L5",
     "home_goals_conceded_avg_L5",
+    "home_avg_opponent_elo_last_5",
+    "home_avg_opponent_fifa_rank_last_5",
+    "home_weighted_goal_diff_last_5",
     "away_goals_scored_avg_L5",
     "away_goals_conceded_avg_L5",
+    "away_avg_opponent_elo_last_5",
+    "away_avg_opponent_fifa_rank_last_5",
+    "away_weighted_goal_diff_last_5",
     
     "home_win_rate_L10",
-    "away_win_rate_L10",
     "home_goal_diff_avg_L10",
+    "home_avg_opponent_elo_last_10",
+    "home_avg_opponent_fifa_rank_last_10",
+    "home_weighted_goal_diff_last_10",
+    "away_win_rate_L10",
     "away_goal_diff_avg_L10",
+    "away_avg_opponent_elo_last_10",
+    "away_avg_opponent_fifa_rank_last_10",
+    "away_weighted_goal_diff_last_10",
     
-    "h2h_matches_played",
-    "h2h_home_win_rate",
     "h2h_avg_goals_home",
     "h2h_avg_goals_away",
     
     "neutral",
     "tournament",
-    
-    "home_shootout_count",
-    "away_shootout_count",
-    "home_shootout_win_rate",
-    "away_shootout_win_rate",
     
     "home_score",
     "away_score",

@@ -27,3 +27,4 @@ Thumbs.db
 
 # Large / Temp Data (excluding our models and datasets)
 *.log
+Dataset/appearances.csv
