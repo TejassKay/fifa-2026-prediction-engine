@@ -460,13 +460,18 @@ def get_groups():
 
 @app.get("/api/bracket")
 def get_bracket():
-    groups = DATA.get("structured_groups", [])
-    if not groups:
-        return {}
-    import knockout_resolver
-    live_schedule = knockout_resolver.resolve_standings()
-    from bracket_engine import build_bracket
-    return build_bracket(groups, DATA.get("lambda_lookup", {}), DATA.get("champions", []), live_schedule)
+    try:
+        groups = DATA.get("structured_groups", [])
+        if not groups:
+            return {}
+        import knockout_resolver
+        live_schedule = knockout_resolver.resolve_standings()
+        from bracket_engine import build_bracket
+        return build_bracket(groups, DATA.get("lambda_lookup", {}), DATA.get("champions", []), live_schedule)
+    except Exception as e:
+        import traceback
+        from fastapi import Response
+        return Response(content=traceback.format_exc(), media_type="text/plain", status_code=500)
 
 @app.get("/api/intelligence/storylines")
 def get_storylines():
@@ -800,17 +805,22 @@ def record_match_result(req: MatchRecordRequest, background_tasks: BackgroundTas
 
 @app.get("/api/accuracy/model")
 def get_model_accuracy():
-    completed = database.get_completed_matches()
-    predictions = database.get_predictions()
-    
-    if not completed:
-        return {"message": "No completed matches yet."}
+    try:
+        completed = database.get_completed_matches()
+        predictions = database.get_predictions()
         
-    winner_hits = 0
-    exact_score_hits = 0
-    brier_sum = 0.0
-    logloss_sum = 0.0
-    valid_matches = 0
+        if not completed:
+            return {"message": "No completed matches yet."}
+            
+        winner_hits = 0
+        exact_score_hits = 0
+        brier_sum = 0.0
+        logloss_sum = 0.0
+        valid_matches = 0
+    except Exception as e:
+        import traceback
+        from fastapi import Response
+        return Response(content=traceback.format_exc(), media_type="text/plain", status_code=500)
     
     historical_timeline = []
     completed_sorted = sorted(completed, key=lambda x: str(x.get('date', '')))
