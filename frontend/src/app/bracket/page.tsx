@@ -17,17 +17,22 @@ export default function BracketPage() {
 
   useEffect(() => {
     async function load() {
-      const data = await fetchBracket();
-      setBracket(data);
-      setLoading(false);
-      
-      // Center scroll horizontally initially
-      setTimeout(() => {
-        if (containerRef.current) {
-          const scrollTarget = (2600 - window.innerWidth) / 2;
-          containerRef.current.scrollTo({ left: scrollTarget > 0 ? scrollTarget : 0, behavior: "smooth" });
-        }
-      }, 100);
+      try {
+        const data = await fetchBracket();
+        setBracket(data);
+      } catch (err) {
+        console.error("Failed to load bracket", err);
+        setBracket(null);
+      } finally {
+        setLoading(false);
+        // Center scroll horizontally initially
+        setTimeout(() => {
+          if (containerRef.current) {
+            const scrollTarget = (2600 - window.innerWidth) / 2;
+            containerRef.current.scrollTo({ left: scrollTarget > 0 ? scrollTarget : 0, behavior: "smooth" });
+          }
+        }, 100);
+      }
     }
     load();
   }, []);
@@ -55,7 +60,7 @@ export default function BracketPage() {
     containerRef.current.scrollLeft = scrollLeft - walk;
   };
 
-  if (loading || !bracket || !bracket.r32) {
+  if (loading) {
     return (
       <div className="w-full space-y-8 pb-12 overflow-x-hidden">
         <div className="max-w-7xl mx-auto px-6">
@@ -64,6 +69,17 @@ export default function BracketPage() {
         </div>
         <div className="flex justify-center items-center h-[900px]">
           <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!bracket || !bracket.r32) {
+    return (
+      <div className="w-full space-y-8 pb-12 overflow-x-hidden">
+        <div className="max-w-7xl mx-auto px-6 mt-12 text-center">
+          <h1 className="text-3xl font-bold text-red-500 mb-4">Error Loading Bracket</h1>
+          <p className="text-neutral-500">Could not fetch bracket data. Please ensure the backend is running.</p>
         </div>
       </div>
     );

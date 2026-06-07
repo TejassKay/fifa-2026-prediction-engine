@@ -39,6 +39,15 @@ export default function AccuracyCenter() {
     );
   }
 
+  if (!data) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-8">
+        <h1 className="text-3xl font-bold mb-4 text-red-500">Error Loading Data</h1>
+        <p className="text-neutral-500">Failed to fetch accuracy data. Please ensure the backend is running.</p>
+      </div>
+    );
+  }
+
   const {
     matches_evaluated,
     winner_accuracy,
