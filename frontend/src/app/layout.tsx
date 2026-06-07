@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Oswald } from "next/font/google";
 import "./globals.css";
 import { Sidebar } from "@/components/Sidebar";
+import { MobileNav } from "@/components/MobileNav";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const oswald = Oswald({ subsets: ["latin"], variable: "--font-heading" });
@@ -18,7 +19,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className={`${inter.variable} ${oswald.variable} bg-background text-foreground antialiased flex h-screen overflow-hidden relative`}>
+      <body className={`${inter.variable} ${oswald.variable} bg-background text-foreground antialiased flex flex-col md:flex-row h-screen overflow-hidden relative`}>
         {/* Ambient Neon Gradients */}
         <div className="absolute top-[-10%] left-[-10%] w-[40vw] h-[40vw] rounded-full bg-[#00f2fe]/20 blur-[120px] pointer-events-none z-[-2]"></div>
         <div className="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-[#4facfe]/20 blur-[150px] pointer-events-none z-[-2]"></div>
@@ -31,8 +32,9 @@ export default function RootLayout({
           </div>
         </div>
 
+        <MobileNav />
         <Sidebar />
-        <main className="flex-1 overflow-y-auto bg-neutral-950/80 backdrop-blur-3xl p-6 md:p-10 relative z-10">
+        <main className="flex-1 overflow-y-auto bg-neutral-950/80 backdrop-blur-3xl p-4 md:p-10 relative z-10 w-full">
           {children}
         </main>
       </body>
