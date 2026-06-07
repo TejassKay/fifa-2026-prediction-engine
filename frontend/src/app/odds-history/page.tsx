@@ -76,7 +76,7 @@ export default function OddsHistoryPage() {
                 <Tooltip 
                   contentStyle={{ backgroundColor: '#171717', borderColor: '#262626', color: '#fff' }}
                   itemStyle={{ fontWeight: 'bold' }}
-                  formatter={(value: number) => [`${(value * 100).toFixed(1)}%`]}
+                  formatter={(value: any) => [`${(Number(value) * 100).toFixed(1)}%`]}
                   labelStyle={{ color: '#a3a3a3', marginBottom: '8px' }}
                 />
                 <Legend iconType="circle" />

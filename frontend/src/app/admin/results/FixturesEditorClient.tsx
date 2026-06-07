@@ -11,7 +11,9 @@ export default function FixturesEditorClient({ pendingMatches, completedMatches 
   const [selectedMatch, setSelectedMatch] = useState<any>(null);
   const [homeScore, setHomeScore] = useState<number | ''>('');
   const [awayScore, setAwayScore] = useState<number | ''>('');
-  const [winner, setWinner] = useState<string>('D');
+  
+  type Winner = 'H' | 'D' | 'A';
+  const [winner, setWinner] = useState<Winner>('D');
   
   const [scorers, setScorers] = useState<any[]>([]);
   const [squads, setSquads] = useState<{home: any[], away: any[]}>({home: [], away: []});
@@ -220,7 +222,7 @@ export default function FixturesEditorClient({ pendingMatches, completedMatches 
               </div>
             </div>
             
-            {winner === 'D' && selectedMatch.stage !== 'Group Stage' && (
+            {homeScore !== '' && homeScore === awayScore && selectedMatch.stage !== 'Group Stage' && (
               <div>
                 <label className="text-xs text-neutral-400 uppercase block mb-2">Penalty Shootout Winner</label>
                 <div className="flex gap-2">
@@ -242,7 +244,7 @@ export default function FixturesEditorClient({ pendingMatches, completedMatches 
               </ul>
               
               <div className="flex gap-2 mb-2">
-                <Input placeholder="Minute..." type="number" value={minute} onChange={e => setMinute(e.target.value)} className="w-24 bg-neutral-950 border-neutral-800" />
+                <Input placeholder="Minute..." type="number" value={minute} onChange={e => setMinute(e.target.value === '' ? '' : parseInt(e.target.value))} className="w-24 bg-neutral-950 border-neutral-800" />
                 <Input placeholder="Search player..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="flex-1 bg-neutral-950 border-neutral-800" />
               </div>
               
