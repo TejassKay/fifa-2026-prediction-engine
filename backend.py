@@ -35,6 +35,12 @@ def verify_jwt(authorization: str = Header(None)):
         raise HTTPException(status_code=401, detail="Invalid token")
 app = FastAPI(title="FIFA 2026 Prediction API")
 
+import database
+try:
+    database.init_db()
+except Exception as e:
+    print(f"Database initialization failed: {e}")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origin_regex=".*", # Allows any origin while keeping allow_credentials=True
