@@ -937,9 +937,7 @@ class LoginRequest(BaseModel):
 def admin_login(req: LoginRequest):
     import os
     import jwt
-    from dotenv import load_dotenv
     
-    load_dotenv()
     ADMIN_PASSWORD_HASH = os.getenv("ADMIN_PASSWORD_HASH")
     JWT_SECRET = os.getenv("JWT_SECRET")
     
