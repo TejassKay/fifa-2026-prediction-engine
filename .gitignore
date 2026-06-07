@@ -29,3 +29,4 @@ Thumbs.db
 *.log
 Dataset/appearances.csv
 DETAILED_ARCHITECTURE.md
+venv2/
