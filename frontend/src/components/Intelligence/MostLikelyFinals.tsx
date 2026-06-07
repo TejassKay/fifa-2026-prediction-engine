@@ -9,7 +9,7 @@ export default function MostLikelyFinals() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("http://localhost:8000/api/intelligence/finals")
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/intelligence/finals`)
       .then(res => res.json())
       .then(data => {
         setFinals(data);

@@ -17,7 +17,7 @@ export default function MatchHub() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`http://localhost:8000/api/match/${id}`)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/match/${id}`)
       .then(res => res.json())
       .then(data => {
         if (data.error) {
@@ -27,8 +27,8 @@ export default function MatchHub() {
         setMatchData(data);
         
         Promise.all([
-          fetch(`http://localhost:8000/api/teams/${data.home_team}`).then(r => r.json()),
-          fetch(`http://localhost:8000/api/teams/${data.away_team}`).then(r => r.json())
+          fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/teams/${data.home_team}`).then(r => r.json()),
+          fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/teams/${data.away_team}`).then(r => r.json())
         ]).then(([homeStats, awayStats]) => {
           setTeamStats({ home: homeStats, away: awayStats });
           setLoading(false);

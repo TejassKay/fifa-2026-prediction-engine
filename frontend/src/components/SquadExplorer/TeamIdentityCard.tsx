@@ -15,7 +15,7 @@ export default function TeamIdentityCard({ teamName }: TeamIdentityCardProps) {
   useEffect(() => {
     if (!teamName) return;
     setLoading(true);
-    fetch(`http://localhost:8000/api/team-identity/${teamName}`)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/team-identity/${teamName}`)
       .then(res => res.json())
       .then(data => {
         setIdentity(data);

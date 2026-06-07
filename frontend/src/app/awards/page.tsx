@@ -36,12 +36,12 @@ export default function AwardsCenter() {
 
   useEffect(() => {
     Promise.all([
-      fetch("http://localhost:8000/api/golden-boot").then(res => res.json()),
-      fetch("http://localhost:8000/api/golden-ball").then(res => res.json()),
-      fetch("http://localhost:8000/api/best-young-player").then(res => res.json()),
-      fetch("http://localhost:8000/api/breakout-stars").then(res => res.json()),
-      fetch("http://localhost:8000/api/valuable-xi").then(res => res.json()),
-      fetch("http://localhost:8000/api/all-team-mvps").then(res => res.json())
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/golden-boot`).then(res => res.json()),
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/golden-ball`).then(res => res.json()),
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/best-young-player`).then(res => res.json()),
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/breakout-stars`).then(res => res.json()),
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/valuable-xi`).then(res => res.json()),
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/all-team-mvps`).then(res => res.json())
     ]).then(([boot, ball, young, breakout, xi, mvps]) => {
       setData({
         goldenBoot: boot,

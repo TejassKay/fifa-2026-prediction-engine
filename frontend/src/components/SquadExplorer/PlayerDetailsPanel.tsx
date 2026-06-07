@@ -17,7 +17,7 @@ export default function PlayerDetailsPanel({ player, countryCode }: PlayerDetail
   useEffect(() => {
     if (player?.name) {
       setLoadingIntel(true);
-      fetch(`http://localhost:8000/api/players/${encodeURIComponent(player.name)}`)
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/players/${encodeURIComponent(player.name)}`)
         .then(res => res.json())
         .then(data => {
           if (!data.error) {

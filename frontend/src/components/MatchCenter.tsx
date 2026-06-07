@@ -46,23 +46,40 @@ const PrecisionCountdown = ({ dateStr, timeStr }: { dateStr: string, timeStr?: s
   );
 };
 
+const LiveBadgeCenter = () => (
+    <div className="flex items-center justify-center gap-3 mt-4">
+      <div className="relative flex items-center justify-center">
+        <div className="absolute w-4 h-4 bg-red-500 rounded-full animate-ping opacity-75"></div>
+        <div className="relative w-3 h-3 bg-red-500 rounded-full shadow-[0_0_15px_rgba(239,68,68,1)]"></div>
+      </div>
+      <div className="text-red-500 font-black tracking-widest uppercase text-lg md:text-xl drop-shadow-[0_0_10px_rgba(239,68,68,0.3)]">
+        LIVE
+      </div>
+    </div>
+);
+
 export default function MatchCenter() {
   const [matchData, setMatchData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("http://localhost:8000/api/fixtures/upcoming")
-      .then(res => res.json())
-      .then(data => {
-        if (data && data.length > 0) {
-          setMatchData(data[0]);
-        }
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error(err);
-        setLoading(false);
-      });
+    const fetchFixtures = () => {
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/fixtures/upcoming`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.length > 0) {
+            setMatchData(data[0]);
+          }
+          setLoading(false);
+        })
+        .catch(err => {
+          console.error(err);
+          setLoading(false);
+        });
+    };
+    fetchFixtures();
+    const interval = setInterval(fetchFixtures, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   if (loading) {
@@ -80,6 +97,11 @@ export default function MatchCenter() {
         <div className={`flex-1 bg-gradient-to-r ${getFlagGradientByName(home_team)}`}></div>
         <div className={`flex-1 bg-gradient-to-l ${getFlagGradientByName(away_team)}`}></div>
       </div>
+
+      {/* Midfield Line & Center Circle */}
+      <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[2px] bg-white opacity-30 z-0"></div>
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 rounded-full border-2 border-white opacity-30 z-0"></div>
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-white opacity-50 z-0"></div>
       
       <div className="relative z-10 p-6 md:p-10 flex flex-col md:flex-row items-center justify-between gap-6">
         {/* Home Team */}
@@ -105,7 +127,7 @@ export default function MatchCenter() {
           <div className="text-xs text-gray-500 font-bold tracking-widest uppercase mb-4 text-center">
             <div>{matchData.date}</div>
             <div>{matchData.venue}</div>
-            <PrecisionCountdown dateStr={matchData.date} timeStr={matchData.time_local} />
+            {matchData.status === "LIVE" ? <LiveBadgeCenter /> : <PrecisionCountdown dateStr={matchData.date} timeStr={matchData.time_local} />}
           </div>
           
           <div className="flex flex-col items-center justify-center shrink-0">

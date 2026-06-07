@@ -5,7 +5,8 @@ import { fetchMatchPrediction, fetchChampions } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { getFlagGradientByName } from "@/lib/flags";
 
 export default function PredictorPage() {
   const [homeTeam, setHomeTeam] = useState<string>("Spain");
@@ -40,7 +41,30 @@ export default function PredictorPage() {
   }, [homeTeam, awayTeam]);
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 pb-12">
+    <>
+      <AnimatePresence>
+        <motion.div
+          key={`glow-left-${homeTeam}`}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 0.22 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 1.5 }}
+          className={`fixed top-0 -left-[10vw] bottom-0 w-[40vw] bg-gradient-to-r ${getFlagGradientByName(homeTeam)} blur-[120px] -z-10 pointer-events-none`}
+        />
+      </AnimatePresence>
+
+      <AnimatePresence>
+        <motion.div
+          key={`glow-right-${awayTeam}`}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 0.22 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 1.5 }}
+          className={`fixed top-0 -right-[10vw] bottom-0 w-[40vw] bg-gradient-to-l ${getFlagGradientByName(awayTeam)} blur-[120px] -z-10 pointer-events-none`}
+        />
+      </AnimatePresence>
+
+      <div className="max-w-5xl mx-auto space-y-8 pb-12 pt-8 relative z-10">
       <div>
         <h1 className="text-4xl font-bold tracking-tight text-white mb-2 font-heading uppercase">Match Predictor</h1>
         <p className="text-neutral-400">Head-to-head probabilistic inference using XGBoost expected goals.</p>
@@ -213,5 +237,6 @@ export default function PredictorPage() {
         </Card>
       )}
     </div>
+    </>
   );
 }

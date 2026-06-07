@@ -1,6 +1,6 @@
 import numpy as np
 
-def build_bracket(groups_data, lambda_lookup, champs):
+def build_bracket(groups_data, lambda_lookup, champs, live_schedule=None):
     """
     groups_data is the structured_groups from DATA["structured_groups"]
     lambda_lookup is the expected goals dict for pairs
@@ -8,8 +8,10 @@ def build_bracket(groups_data, lambda_lookup, champs):
     """
     if not groups_data:
         return {}
+    if live_schedule is None:
+        live_schedule = []
 
-    # 1. Extract 1st, 2nd, and 3rd place teams
+    # Extract 1st, 2nd, and 3rd place teams
     firsts = {}
     seconds = {}
     thirds = []
@@ -22,13 +24,11 @@ def build_bracket(groups_data, lambda_lookup, champs):
             seconds[grp] = teams[1]["team"]
             thirds.append({"team": teams[2]["team"], "group": grp, "prob": teams[2]["prob"]})
             
-    # Sort thirds by prob to get top 8
     thirds.sort(key=lambda x: x["prob"], reverse=True)
     best_thirds = thirds[:8]
     
     unassigned_thirds = list(best_thirds)
     def pop_third(allowed_groups):
-        # greedy assignment
         for i, t in enumerate(unassigned_thirds):
             if t["group"] in allowed_groups:
                 return unassigned_thirds.pop(i)["team"]
@@ -37,8 +37,6 @@ def build_bracket(groups_data, lambda_lookup, champs):
         return "TBD"
 
     # Define the 16 R32 matches
-    # We will order them such that M0 & M1 feed into R16 M0, etc.
-    # L1 to L8:
     m_L1 = (firsts.get("A", "1A"), pop_third(["C", "E", "F", "H", "I"])) # M79
     m_L2 = (firsts.get("F", "1F"), seconds.get("C", "2C"))               # M76
     m_L3 = (firsts.get("E", "1E"), pop_third(["A", "B", "C", "D", "F"])) # M75
@@ -48,7 +46,6 @@ def build_bracket(groups_data, lambda_lookup, champs):
     m_L7 = (firsts.get("G", "1G"), pop_third(["A", "E", "H", "I", "J"])) # M81
     m_L8 = (firsts.get("D", "1D"), pop_third(["B", "E", "F", "I", "J"])) # M82
 
-    # R1 to R8:
     m_R1 = (firsts.get("B", "1B"), pop_third(["E", "F", "G", "I", "J"])) # M85
     m_R2 = (firsts.get("C", "1C"), seconds.get("F", "2F"))               # M74
     m_R3 = (firsts.get("H", "1H"), seconds.get("J", "2J"))               # M83
@@ -58,21 +55,57 @@ def build_bracket(groups_data, lambda_lookup, champs):
     m_R7 = (seconds.get("K", "2K"), seconds.get("L", "2L"))              # M84
     m_R8 = (seconds.get("D", "2D"), seconds.get("G", "2G"))              # M86
 
-    r32_matchups = [
-        m_L1, m_L2, m_L3, m_L4, m_L5, m_L6, m_L7, m_L8,
-        m_R1, m_R2, m_R3, m_R4, m_R5, m_R6, m_R7, m_R8
-    ]
+    r32_mapping = {
+        79: m_L1, 76: m_L2, 75: m_L3, 73: m_L4,
+        78: m_L5, 77: m_L6, 81: m_L7, 82: m_L8,
+        85: m_R1, 74: m_R2, 83: m_R3, 87: m_R4,
+        88: m_R5, 80: m_R6, 84: m_R7, 86: m_R8
+    }
+
+    live_dict = {m['match_number']: m for m in live_schedule}
     
+    def is_real_team(t):
+        if not t: return False
+        t_str = str(t)
+        return not any(x in t_str for x in ["Winner", "Runner-up", "3rd Place", "TBD", "Match"])
+
+    hybrid_r32 = []
+    r32_order = [79, 76, 75, 73, 78, 77, 81, 82, 85, 74, 83, 87, 88, 80, 84, 86]
+    
+    for m_num in r32_order:
+        pred_a, pred_b = r32_mapping[m_num]
+        live_m = live_dict.get(m_num, {})
+        live_a = live_m.get('team_a')
+        live_b = live_m.get('team_b')
+        
+        final_a = live_a if is_real_team(live_a) else pred_a
+        final_b = live_b if is_real_team(live_b) else pred_b
+        
+        hybrid_r32.append((final_a, final_b, m_num))
+
     probs_map = { t["team"]: t for t in champs }
     
-    # 2. Simulate logic
-    def simulate_match(t1, t2, round_key):
+    def simulate_match(t1, t2, round_key, match_number=None):
+        live_m = live_dict.get(match_number, {}) if match_number else {}
+        if live_m.get('status') == 'completed':
+            live_a = live_m.get('team_a')
+            live_winner = live_m.get('winner')
+            # If the DB says home won, we use t1, else t2
+            resolved_winner = t1 if live_winner == live_a else t2
+            return {
+                "winner": resolved_winner,
+                "home": t1,
+                "away": t2,
+                "score_home": live_m.get('home_score', 0),
+                "score_away": live_m.get('away_score', 0)
+            }
+            
         if (t1, t2) in lambda_lookup:
             lam1, lam2 = lambda_lookup[(t1, t2)]
         elif (t2, t1) in lambda_lookup:
             lam2, lam1 = lambda_lookup[(t2, t1)]
         else:
-            lam1, lam2 = 1.2, 1.2 # fallback
+            lam1, lam2 = 1.2, 1.2
             
         p1 = probs_map.get(t1, {}).get(round_key, 0.0)
         p2 = probs_map.get(t2, {}).get(round_key, 0.0)
@@ -93,34 +126,40 @@ def build_bracket(groups_data, lambda_lookup, champs):
     
     # Simulate R32
     r16_teams = []
-    for i, (t1, t2) in enumerate(r32_matchups):
-        res = simulate_match(t1, t2, "round_of_16_probability")
+    for i, (t1, t2, m_num) in enumerate(hybrid_r32):
+        res = simulate_match(t1, t2, "round_of_16_probability", m_num)
         rounds["r32"].append({"id": i, **res})
         r16_teams.append(res["winner"])
         
     # Simulate R16
+    r16_order = [89, 90, 91, 92, 93, 94, 95, 96]
     qf_teams = []
     for i in range(0, 16, 2):
-        res = simulate_match(r16_teams[i], r16_teams[i+1], "quarter_final_probability")
+        m_num = r16_order[i//2]
+        res = simulate_match(r16_teams[i], r16_teams[i+1], "quarter_final_probability", m_num)
         rounds["r16"].append({"id": 16 + (i//2), **res})
         qf_teams.append(res["winner"])
         
     # Simulate QF
+    qf_order = [97, 98, 99, 100]
     sf_teams = []
     for i in range(0, 8, 2):
-        res = simulate_match(qf_teams[i], qf_teams[i+1], "semi_final_probability")
+        m_num = qf_order[i//2]
+        res = simulate_match(qf_teams[i], qf_teams[i+1], "semi_final_probability", m_num)
         rounds["qf"].append({"id": 24 + (i//2), **res})
         sf_teams.append(res["winner"])
         
     # Simulate SF
+    sf_order = [101, 102]
     final_teams = []
     for i in range(0, 4, 2):
-        res = simulate_match(sf_teams[i], sf_teams[i+1], "final_probability")
+        m_num = sf_order[i//2]
+        res = simulate_match(sf_teams[i], sf_teams[i+1], "final_probability", m_num)
         rounds["sf"].append({"id": 28 + (i//2), **res})
         final_teams.append(res["winner"])
         
     # Simulate Final
-    res = simulate_match(final_teams[0], final_teams[1], "champion_probability")
+    res = simulate_match(final_teams[0], final_teams[1], "champion_probability", 104)
     rounds["final"].append({"id": 30, **res})
     
     rounds["champion"] = res["winner"]

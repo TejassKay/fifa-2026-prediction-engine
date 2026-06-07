@@ -6,7 +6,7 @@ from xgboost import XGBRegressor
 from sklearn.metrics import accuracy_score, log_loss, brier_score_loss
 import category_encoders as ce
 
-def load_data(filepath="final_training_dataset.csv"):
+def load_data(filepath="final_training_dataset_with_squads.csv"):
     df = pd.read_csv(filepath)
     df['date'] = pd.to_datetime(df['date'])
     
@@ -29,10 +29,9 @@ def handle_missing_values(df):
     df['rank_diff'] = df['rank_diff'].fillna(0)
     df['home_fifa_points'] = df['home_fifa_points'].fillna(0)
     df['away_fifa_points'] = df['away_fifa_points'].fillna(0)
-    df['h2h_matches_played'] = df['h2h_matches_played'].fillna(0)
-    df['h2h_home_win_rate'] = df['h2h_home_win_rate'].fillna(0)
-    df['h2h_avg_goals_home'] = df['h2h_avg_goals_home'].fillna(0)
-    df['h2h_avg_goals_away'] = df['h2h_avg_goals_away'].fillna(0)
+    for col in ['h2h_matches_played', 'h2h_home_win_rate', 'h2h_avg_goals_home', 'h2h_avg_goals_away']:
+        if col in df.columns:
+            df[col] = df[col].fillna(0)
     form_cols = [c for c in df.columns if 'avg' in c or 'rate' in c]
     for c in form_cols:
         if c in df.columns:
@@ -58,10 +57,12 @@ def filter_features(features, condition):
     elif condition == 'D_No_Shootouts':
         return [f for f in features if 'shootout' not in f]
     elif condition == 'E_No_Form':
-        # Form features are typically those containing 'avg' or 'win_rate' EXCEPT h2h and shootout (which have their own ablations, but let's exclude all form)
+        # Form features are typically those containing 'avg' or 'rate' EXCEPT h2h and shootout (which have their own ablations, but let's exclude all form)
         return [f for f in features if not (('avg' in f or 'rate' in f) and 'h2h' not in f and 'shootout' not in f)]
     elif condition == 'F_ELO_Only':
         return ['home_elo_pre', 'away_elo_pre', 'elo_diff', 'home_team', 'away_team', 'tournament', 'neutral']
+    elif condition == 'G_No_Squad_Stats':
+        return [f for f in features if not any(k in f for k in ['squad_market_value', 'experience_index', 'avg_squad_age', 'star_power', 'squad_form_minutes'])]
     return features
 
 def evaluate_probabilistic(y_test_h, y_test_a, pred_h, pred_a, eval_test):
@@ -160,7 +161,7 @@ def main():
     y_test_a = test_df['away_score']
     eval_test = test_df[['home_score', 'away_score', 'result', 'goal_diff']].copy()
     
-    conditions = ['A_Full', 'B_No_H2H', 'C_No_FIFA', 'D_No_Shootouts', 'E_No_Form', 'F_ELO_Only']
+    conditions = ['A_Full', 'B_No_H2H', 'C_No_FIFA', 'D_No_Shootouts', 'E_No_Form', 'F_ELO_Only', 'G_No_Squad_Stats']
     results = {}
     
     for cond in conditions:

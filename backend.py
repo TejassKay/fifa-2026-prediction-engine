@@ -1,19 +1,43 @@
 import pandas as pd
 import numpy as np
 import joblib
-from fastapi import FastAPI
+from fastapi import FastAPI, BackgroundTasks, Header, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from collections import defaultdict
 from scipy.stats import poisson
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+from typing import List, Dict, Any, Optional
+import database
+import os
+import jwt
+import bcrypt
 
+def verify_jwt(authorization: str = Header(None)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    token = authorization.split(" ")[1]
+    
+    JWT_SECRET = os.getenv("JWT_SECRET")
+    if not JWT_SECRET:
+        raise HTTPException(status_code=500, detail="JWT_SECRET not configured")
+        
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+        if payload.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Forbidden")
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
 app = FastAPI(title="FIFA 2026 Prediction API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origin_regex=".*", # Allows any origin while keeping allow_credentials=True
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -22,6 +46,18 @@ app.add_middleware(
 class MatchRequest(BaseModel):
     home_team: str
     away_team: str
+
+class GoalScorer(BaseModel):
+    player_id: Optional[str] = None
+    player_name: str
+    minute: int
+
+class MatchRecordRequest(BaseModel):
+    match_id: str
+    home_score: int
+    away_score: int
+    winner: str
+    goal_scorers: List[GoalScorer]
 
 # In-memory storage for loaded data to avoid reloading on every request
 DATA = {}
@@ -84,6 +120,29 @@ def load_data():
         DATA["elo"] = dict(zip(df_e_clean["team"], df_e_clean["rating"]))
     except:
         DATA["elo"] = {}
+        
+    try:
+        import knockout_resolver
+        DATA["schedule"] = knockout_resolver.resolve_standings()
+    except Exception as e:
+        print(f"Could not load resolved schedule: {e}")
+        try:
+            DATA["schedule"] = pd.read_csv("Dataset/world-cup-2026-schedule.csv").to_dict(orient="records")
+        except:
+            DATA["schedule"] = []
+            
+    # Clean up NaN globally for the schedule
+    import math
+    cleaned_schedule = []
+    for m in DATA["schedule"]:
+        c = {}
+        for k, v in m.items():
+            if isinstance(v, float) and math.isnan(v):
+                c[k] = ""
+            else:
+                c[k] = v
+        cleaned_schedule.append(c)
+    DATA["schedule"] = cleaned_schedule
         
     try:
         df_feat = pd.read_csv("world_cup_2026_features.csv")
@@ -404,8 +463,10 @@ def get_bracket():
     groups = DATA.get("structured_groups", [])
     if not groups:
         return {}
+    import knockout_resolver
+    live_schedule = knockout_resolver.resolve_standings()
     from bracket_engine import build_bracket
-    return build_bracket(groups, DATA.get("lambda_lookup", {}), DATA.get("champions", []))
+    return build_bracket(groups, DATA.get("lambda_lookup", {}), DATA.get("champions", []), live_schedule)
 
 @app.get("/api/intelligence/storylines")
 def get_storylines():
@@ -454,7 +515,36 @@ def get_upcoming_fixtures():
     if not schedule:
         return []
     
-    matches = schedule[:5]
+    et_tz = ZoneInfo("US/Eastern")
+    now = datetime.now(et_tz)
+    
+    active_matches = []
+    duration_buffer = timedelta(hours=2, minutes=30)
+    
+    for match in schedule:
+        date_str = match.get("date")
+        time_str = match.get("time_et", "00:00")
+        
+        try:
+            match_dt_naive = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
+            match_dt = match_dt_naive.replace(tzinfo=et_tz)
+        except Exception:
+            continue
+            
+        if now < match_dt:
+            status = "UPCOMING"
+        elif match_dt <= now <= match_dt + duration_buffer:
+            status = "LIVE"
+        else:
+            status = "FINISHED"
+            
+        if status in ["UPCOMING", "LIVE"]:
+            match_copy = match.copy()
+            match_copy["status"] = status
+            active_matches.append(match_copy)
+            
+    matches = active_matches[:5]
+    
     results = []
     for match in matches:
         req = MatchRequest(home_team=match["team_a"], away_team=match["team_b"])
@@ -466,7 +556,8 @@ def get_upcoming_fixtures():
             "venue": match.get("venue", "Estadio Azteca"),
             "home_team": match["team_a"],
             "away_team": match["team_b"],
-            "prediction": pred
+            "prediction": pred,
+            "status": match.get("status", "UPCOMING")
         })
     return results
 
@@ -658,6 +749,396 @@ def get_finals():
             
     finals = sorted(finals, key=lambda x: x["probability"], reverse=True)[:10]
     return finals
+
+@app.post("/api/matches/record")
+def record_match_result(req: MatchRecordRequest, background_tasks: BackgroundTasks, payload: dict = Depends(verify_jwt)):
+    df_wc = pd.read_csv("Dataset/world-cup-2026-schedule.csv")
+    # match_number can be int or string, so safely compare
+    match_row = df_wc[df_wc['match_number'].astype(str) == str(req.match_id)]
+    
+    if match_row.empty:
+        return {"error": "Match not found in schedule"}
+        
+    m = match_row.iloc[0]
+    
+    database.record_match(
+        match_id=str(req.match_id),
+        home_team=m['team_a'],
+        away_team=m['team_b'],
+        home_score=req.home_score,
+        away_score=req.away_score,
+        winner=req.winner,
+        goal_scorers=[s.dict() for s in req.goal_scorers],
+        stage=m['stage'],
+        date=m['date']
+    )
+    
+    # Reload schedule to reflect updated brackets
+    try:
+        import knockout_resolver
+        new_schedule = knockout_resolver.resolve_standings()
+        
+        import math
+        cleaned_schedule = []
+        for m in new_schedule:
+            c = {}
+            for k, v in m.items():
+                if isinstance(v, float) and math.isnan(v):
+                    c[k] = ""
+                else:
+                    c[k] = v
+            cleaned_schedule.append(c)
+            
+        DATA["schedule"] = cleaned_schedule
+    except Exception as e:
+        print(f"Error resolving schedule after record: {e}")
+    
+    from monte_carlo_simulator import main as run_simulator
+    background_tasks.add_task(run_simulator)
+    
+    return {"status": "success", "message": "Match recorded and re-simulation triggered."}
+
+@app.get("/api/accuracy/model")
+def get_model_accuracy():
+    completed = database.get_completed_matches()
+    predictions = database.get_predictions()
+    
+    if not completed:
+        return {"message": "No completed matches yet."}
+        
+    winner_hits = 0
+    exact_score_hits = 0
+    brier_sum = 0.0
+    logloss_sum = 0.0
+    valid_matches = 0
+    
+    historical_timeline = []
+    completed_sorted = sorted(completed, key=lambda x: str(x.get('date', '')))
+    
+    for match in completed_sorted:
+        m_id = str(match['match_id'])
+        if m_id not in predictions:
+            continue
+            
+        pred = predictions[m_id]
+        valid_matches += 1
+        
+        is_winner_correct = match['winner'] == pred['pred_winner']
+        if is_winner_correct:
+            winner_hits += 1
+            
+        is_exact_score = match['home_score'] == pred['pred_home_score'] and match['away_score'] == pred['pred_away_score']
+        if is_exact_score:
+            exact_score_hits += 1
+            
+        y_true = [
+            1 if match['winner'] == 'H' else 0,
+            1 if match['winner'] == 'D' else 0,
+            1 if match['winner'] == 'A' else 0
+        ]
+        y_pred = [
+            pred['pred_prob_home'],
+            pred['pred_prob_draw'],
+            pred['pred_prob_away']
+        ]
+        
+        brier = sum((y_pred[i] - y_true[i])**2 for i in range(3))
+        brier_sum += brier
+        
+        import math
+        epsilon = 1e-15
+        logloss = 0.0
+        prob_assigned_to_actual = 0.0
+        for i in range(3):
+            p = max(epsilon, min(1 - epsilon, y_pred[i]))
+            if y_true[i] == 1:
+                logloss = -math.log(p)
+                logloss_sum += logloss
+                prob_assigned_to_actual = y_pred[i]
+                
+        historical_timeline.append({
+            "match": f"{match['home_team']} vs {match['away_team']}",
+            "prob_assigned": prob_assigned_to_actual,
+            "is_winner_correct": is_winner_correct,
+            "cumulative_accuracy": winner_hits / valid_matches
+        })
+
+    if valid_matches == 0:
+        return {"message": "No predictions found for completed matches."}
+        
+    best_pred = max(historical_timeline, key=lambda x: x["prob_assigned"]) if historical_timeline else None
+    worst_pred = min(historical_timeline, key=lambda x: x["prob_assigned"]) if historical_timeline else None
+    
+    odds_history = database.get_odds_history()
+    largest_swing = 0.0
+    largest_swing_team = ""
+    largest_swing_match = ""
+    
+    m_ids = ["pre_tournament"] + [str(m['match_id']) for m in completed_sorted]
+    for i in range(1, len(m_ids)):
+        prev_m = m_ids[i-1]
+        curr_m = m_ids[i]
+        
+        if prev_m in odds_history and curr_m in odds_history:
+            prev_odds = odds_history[prev_m]
+            curr_odds = odds_history[curr_m]
+            for team, prob in curr_odds.items():
+                p_prev = prev_odds.get(team, 0.0)
+                diff = abs(prob - p_prev)
+                if diff > largest_swing:
+                    largest_swing = diff
+                    largest_swing_team = team
+                    
+                    # Find match name
+                    m_name = curr_m
+                    for m in completed_sorted:
+                        if str(m['match_id']) == curr_m:
+                            m_name = f"{m['home_team']} vs {m['away_team']}"
+                            break
+                    largest_swing_match = m_name
+
+    # Biggest upset
+    # Find match where underdog won with lowest prob
+    upsets = [x for x in historical_timeline if not x["is_winner_correct"] and x["prob_assigned"] < 0.33]
+    biggest_upset = min(upsets, key=lambda x: x["prob_assigned"]) if upsets else worst_pred
+        
+    return {
+        "matches_evaluated": valid_matches,
+        "winner_accuracy": winner_hits / valid_matches,
+        "exact_score_accuracy": exact_score_hits / valid_matches,
+        "brier_score": brier_sum / valid_matches,
+        "log_loss": logloss_sum / valid_matches,
+        "timeline": historical_timeline,
+        "best_prediction": best_pred,
+        "worst_prediction": worst_pred,
+        "biggest_upset": biggest_upset,
+        "most_surprising_result": worst_pred,
+        "largest_odds_swing": {
+            "team": largest_swing_team,
+            "match": largest_swing_match,
+            "swing": largest_swing
+        } if largest_swing > 0 else None
+    }
+
+class LoginRequest(BaseModel):
+    password: str
+
+@app.post("/api/admin/login")
+def admin_login(req: LoginRequest):
+    import os
+    import jwt
+    from dotenv import load_dotenv
+    
+    load_dotenv()
+    ADMIN_PASSWORD_HASH = os.getenv("ADMIN_PASSWORD_HASH")
+    JWT_SECRET = os.getenv("JWT_SECRET")
+    
+    if not ADMIN_PASSWORD_HASH or not JWT_SECRET:
+        raise HTTPException(status_code=500, detail="Server secrets not configured")
+        
+    try:
+        if bcrypt.checkpw(req.password.encode('utf-8'), ADMIN_PASSWORD_HASH.encode('utf-8')):
+            token = jwt.encode({"role": "admin", "exp": datetime.utcnow() + timedelta(days=1)}, JWT_SECRET, algorithm="HS256")
+            return {"token": token}
+    except Exception as e:
+        print(f"Bcrypt error: {e}")
+        
+    raise HTTPException(status_code=401, detail="Invalid credentials")
+
+@app.delete("/api/matches/{match_id}")
+def delete_match_result(match_id: str, background_tasks: BackgroundTasks, payload: dict = Depends(verify_jwt)):
+    database.delete_match(match_id)
+    
+    # Reload schedule to reflect updated brackets
+    try:
+        import knockout_resolver
+        new_schedule = knockout_resolver.resolve_standings()
+        
+        import math
+        cleaned_schedule = []
+        for m in new_schedule:
+            c = {}
+            for k, v in m.items():
+                if isinstance(v, float) and math.isnan(v):
+                    c[k] = ""
+                else:
+                    c[k] = v
+            cleaned_schedule.append(c)
+            
+        DATA["schedule"] = cleaned_schedule
+    except Exception as e:
+        print(f"Error resolving schedule after delete: {e}")
+        
+    # Re-run simulation
+    background_tasks.add_task(run_background_simulation)
+    
+    return {"status": "success", "message": f"Match {match_id} deleted and simulation restarted"}
+
+@app.get("/api/fixtures/pending")
+def get_pending_fixtures():
+    schedule = DATA.get("schedule", [])
+    if not schedule:
+        return []
+    
+    # Return matches that are not completed
+    pending = [m for m in schedule if m.get("status") != "completed"]
+    
+    # Clean up any residual NaNs
+    import math
+    cleaned_pending = []
+    for m in pending:
+        c = {}
+        for k, v in m.items():
+            if isinstance(v, float) and math.isnan(v):
+                c[k] = ""
+            else:
+                c[k] = v
+        cleaned_pending.append(c)
+        
+    return cleaned_pending
+
+@app.get("/api/fixtures/completed")
+def get_completed_fixtures():
+    schedule = DATA.get("schedule", [])
+    if not schedule:
+        return []
+    
+    completed = [m for m in schedule if m.get("status") == "completed"]
+    
+    import math
+    cleaned_completed = []
+    for m in completed:
+        c = {}
+        for k, v in m.items():
+            if isinstance(v, float) and math.isnan(v):
+                c[k] = ""
+            else:
+                c[k] = v
+        cleaned_completed.append(c)
+        
+    return cleaned_completed
+
+
+
+@app.get("/api/stats/golden-boot")
+def get_golden_boot():
+    completed = database.get_completed_matches()
+    
+    player_goals = defaultdict(int)
+    player_teams = {}
+    team_goals = defaultdict(int)
+    
+    import json
+    for match in completed:
+        try:
+            if match.get("goal_scorers"):
+                scorers = json.loads(match["goal_scorers"])
+                for s in scorers:
+                    player_name = s.get("player_name")
+                    if player_name:
+                        player_goals[player_name] += 1
+                        if s.get("team"):
+                            player_teams[player_name] = s.get("team")
+                        elif player_name not in player_teams:
+                            squads = DATA.get("squads", [])
+                            for squad in squads:
+                                for p in squad.get("players", []):
+                                    if p.get("name") == player_name:
+                                        player_teams[player_name] = squad.get("team")
+                                        break
+        except Exception as e:
+            pass
+            
+        home_score = match.get("home_score")
+        away_score = match.get("away_score")
+        if home_score is not None:
+            team_goals[match["home_team"]] += int(home_score)
+        if away_score is not None:
+            team_goals[match["away_team"]] += int(away_score)
+
+    sorted_players = sorted([{"name": k, "goals": v, "team": player_teams.get(k, "Unknown")} for k, v in player_goals.items()], key=lambda x: x["goals"], reverse=True)
+    sorted_teams = sorted([{"team": k, "goals": v} for k, v in team_goals.items()], key=lambda x: x["goals"], reverse=True)
+    
+    return {
+        "top_scorers": sorted_players[:20],
+        "team_leaders": sorted_teams[:10],
+        "rising_players": sorted_players[:5]
+    }
+
+@app.get("/api/timeline")
+def get_timeline():
+    completed = database.get_completed_matches()
+    predictions = database.get_predictions()
+    odds_history = database.get_odds_history()
+    
+    events = []
+    completed_sorted = sorted(completed, key=lambda x: str(x.get('date', '')), reverse=True)
+    
+    for i, match in enumerate(completed_sorted):
+        m_id = str(match['match_id'])
+        pred = predictions.get(m_id)
+        
+        prev_m_id = "pre_tournament"
+        if i + 1 < len(completed_sorted):
+            prev_m_id = str(completed_sorted[i+1]['match_id'])
+            
+        odds_before = odds_history.get(prev_m_id, {})
+        odds_after = odds_history.get(m_id, {})
+        
+        team_a = match.get("home_team")
+        team_b = match.get("away_team")
+        
+        event = {
+            "match_id": m_id,
+            "date": match.get("date"),
+            "stage": match.get("stage"),
+            "team_a": team_a,
+            "team_b": team_b,
+            "actual_home_score": match.get("home_score"),
+            "actual_away_score": match.get("away_score"),
+            "actual_winner": match.get("winner"),
+            "team_a_odds_before": odds_before.get(team_a, 0),
+            "team_a_odds_after": odds_after.get(team_a, 0),
+            "team_b_odds_before": odds_before.get(team_b, 0),
+            "team_b_odds_after": odds_after.get(team_b, 0)
+        }
+        
+        if pred:
+            event["pred_home_score"] = pred.get("pred_home_score")
+            event["pred_away_score"] = pred.get("pred_away_score")
+            event["pred_winner"] = pred.get("pred_winner")
+            
+            is_winner_correct = match['winner'] == pred['pred_winner']
+            is_exact_score = match['home_score'] == pred['pred_home_score'] and match['away_score'] == pred['pred_away_score']
+            
+            event["winner_correct"] = is_winner_correct
+            event["exact_score_correct"] = is_exact_score
+            
+            pred_probs = {
+                "H": pred.get("pred_prob_home", 0),
+                "D": pred.get("pred_prob_draw", 0),
+                "A": pred.get("pred_prob_away", 0)
+            }
+            actual_winner_prob = pred_probs.get(match['winner'], 0)
+            
+            if actual_winner_prob < 0.33 and not is_winner_correct:
+                event["insight"] = "Massive Upset"
+            elif is_exact_score:
+                event["insight"] = "Perfect Prediction"
+            elif is_winner_correct:
+                event["insight"] = "Correct Winner"
+            else:
+                event["insight"] = "Missed Prediction"
+        else:
+            event["insight"] = "No Prediction Data"
+            
+        events.append(event)
+        
+    return events
+
+@app.get("/api/stats/odds-history")
+def api_get_odds_history():
+    return database.get_odds_history()
 
 if __name__ == "__main__":
     import uvicorn

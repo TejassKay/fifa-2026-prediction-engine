@@ -252,7 +252,7 @@ def map_best_thirds(thirds):
     thirds.sort(key=lambda x: (x['pts'], x['gd'], x['gf'], np.random.random()), reverse=True)
     return [x['team'] for x in thirds[:8]]
 
-def simulate_tournament(groups, group_matches, lambda_lookup, shootout_lookup):
+def simulate_tournament(groups, group_matches, lambda_lookup, shootout_lookup, completed_matches_lookup):
     progress = {t: "Group Stage" for g in groups.values() for t in g}
     
     group_standings = {g: [{'team': t, 'pts':0, 'gd':0, 'gf':0, 'ga':0} for t in teams] for g, teams in groups.items()}
@@ -261,9 +261,13 @@ def simulate_tournament(groups, group_matches, lambda_lookup, shootout_lookup):
     # Group Stage
     for m in group_matches:
         ht, at = m['home_team'], m['away_team']
-        lam_h, lam_a = lambda_lookup[(ht, at)]
-        hg = np.random.poisson(lam_h)
-        ag = np.random.poisson(lam_a)
+        
+        if (ht, at) in completed_matches_lookup:
+            hg, ag = completed_matches_lookup[(ht, at)]
+        else:
+            lam_h, lam_a = lambda_lookup[(ht, at)]
+            hg = np.random.poisson(lam_h)
+            ag = np.random.poisson(lam_a)
         
         team_dict[ht]['gf'] += hg
         team_dict[ht]['ga'] += ag
@@ -306,23 +310,29 @@ def simulate_tournament(groups, group_matches, lambda_lookup, shootout_lookup):
     def play_knockout(matchups, next_round_name):
         winners = []
         for ht, at in matchups:
-            lam_h, lam_a = lambda_lookup[(ht, at)]
-            hg = np.random.poisson(lam_h)
-            ag = np.random.poisson(lam_a)
-            
-            if hg > ag:
-                w = ht
-            elif ag > hg:
-                w = at
+            if (ht, at) in completed_matches_lookup:
+                hg, ag = completed_matches_lookup[(ht, at)]
+                if hg > ag: w = ht
+                elif ag > hg: w = at
+                else: w = ht # Edge case: DB should store winner if draw, but simplified here
             else:
-                # Extra Time
-                hge = np.random.poisson(lam_h / 3.0)
-                age = np.random.poisson(lam_a / 3.0)
-                if hge > age: w = ht
-                elif age > hge: w = at
+                lam_h, lam_a = lambda_lookup[(ht, at)]
+                hg = np.random.poisson(lam_h)
+                ag = np.random.poisson(lam_a)
+                
+                if hg > ag:
+                    w = ht
+                elif ag > hg:
+                    w = at
                 else:
-                    # Pens
-                    w = ht if np.random.random() < shootout_lookup[(ht, at)] else at
+                    # Extra Time
+                    hge = np.random.poisson(lam_h / 3.0)
+                    age = np.random.poisson(lam_a / 3.0)
+                    if hge > age: w = ht
+                    elif age > hge: w = at
+                    else:
+                        # Pens
+                        w = ht if np.random.random() < shootout_lookup[(ht, at)] else at
             winners.append(w)
             progress[w] = next_round_name
         return winners
@@ -347,9 +357,24 @@ def simulate_tournament(groups, group_matches, lambda_lookup, shootout_lookup):
 # 3. MAIN RUNNER
 # ------------------------------------------------------------------
 def main():
+    import database
     start_time = time.time()
     df_pred, df_wc_matches = load_and_prepare_lookup()
     lambda_lookup, shootout_lookup = encode_and_predict(df_pred)
+    
+    # Load Completed Matches
+    try:
+        completed = database.get_completed_matches()
+        completed_matches_lookup = {(r['home_team'], r['away_team']): (r['home_score'], r['away_score']) for r in completed}
+        if completed:
+            completed_sorted = sorted(completed, key=lambda x: str(x.get('date', '')))
+            last_match_id = str(completed_sorted[-1]['match_id'])
+        else:
+            last_match_id = "pre_tournament"
+    except Exception as e:
+        print("Database not found or error loading matches:", e)
+        completed_matches_lookup = {}
+        last_match_id = "pre_tournament"
     
     # Create group structures
     # Schedule has 'group' column: 'Group A', etc.
@@ -373,7 +398,7 @@ def main():
     
     # We will simulate natively. Python loop is fast enough for 100k if simple.
     for _ in tqdm(range(N_SIMS)):
-        prog = simulate_tournament(groups, group_matches, lambda_lookup, shootout_lookup)
+        prog = simulate_tournament(groups, group_matches, lambda_lookup, shootout_lookup, completed_matches_lookup)
         for t, stage in prog.items():
             results_agg[t][stage] += 1
             
@@ -399,6 +424,14 @@ def main():
     df_out = df_out.sort_values('champion_probability', ascending=False)
     df_out.to_csv("champion_probabilities.csv", index=False)
     print("\nSaved champion_probabilities.csv")
+    
+    try:
+        odds_dict = df_out.set_index('team')['champion_probability'].to_dict()
+        database.save_odds_snapshot(last_match_id, odds_dict)
+        print(f"Saved odds snapshot for match_id: {last_match_id}")
+    except Exception as e:
+        print("Failed to save odds snapshot:", e)
+        
     
     # Feature Importance Extraction
     print("Extracting feature importances...")

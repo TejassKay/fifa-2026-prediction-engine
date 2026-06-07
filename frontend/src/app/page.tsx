@@ -16,9 +16,9 @@ export default function Home() {
 
   useEffect(() => {
     Promise.all([
-      fetch("http://localhost:8000/api/predictions/champion").then(r => r.json()),
-      fetch("http://localhost:8000/api/intelligence/upsets").then(r => r.json()),
-      fetch("http://localhost:8000/api/intelligence/finals").then(r => r.json())
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/predictions/champion`).then(r => r.json()),
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/intelligence/upsets`).then(r => r.json()),
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/intelligence/finals`).then(r => r.json())
     ]).then(([champs, ups, fins]) => {
       const sortedChamps = champs.sort((a: any, b: any) => b.champion_probability - a.champion_probability);
       setChampion(sortedChamps[0]);

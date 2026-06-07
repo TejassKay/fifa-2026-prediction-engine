@@ -71,7 +71,7 @@ export default function TeamIdentityHeader({ squadData, teams, selectedTeam, onS
               initial={{ y: 10, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               className="text-[10px] md:text-xs font-bold uppercase tracking-[0.3em] text-white/50 mb-1 relative z-10"
-              style={{ color: secondaryColor !== "#FFFFFF" ? secondaryColor : "rgba(255,255,255,0.7)" }}
+              style={{ color: secondaryColor }}
             >
               {nickname}
             </motion.h2>
@@ -86,6 +86,21 @@ export default function TeamIdentityHeader({ squadData, teams, selectedTeam, onS
             <div className="w-48 block md:hidden mt-3 relative z-10">
               <TeamSelector teams={teams} selectedTeam={selectedTeam} onSelect={onSelectTeam} />
             </div>
+
+            {/* Manager */}
+            {squadData.coach && (
+              <motion.div 
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="mt-4 flex items-center gap-3 relative z-10 bg-black/20 w-fit px-4 py-2 rounded-xl border border-white/10 backdrop-blur-sm group"
+              >
+                <div className="flex flex-col justify-center">
+                  <span className="text-[10px] uppercase tracking-[0.2em] text-neutral-500 font-bold leading-none mb-1">Manager</span>
+                  <span className="text-sm md:text-base font-bold text-white leading-none tracking-wide group-hover:text-emerald-400 transition-colors">{squadData.coach}</span>
+                </div>
+              </motion.div>
+            )}
           </div>
         </div>
 

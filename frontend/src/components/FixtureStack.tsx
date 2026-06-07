@@ -37,15 +37,30 @@ const Countdown = ({ dateStr, timeStr }: { dateStr: string, timeStr?: string }) 
   return <span className="bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-500/30">{timeLeft}</span>;
 };
 
+const LiveBadge = () => (
+  <span className="flex items-center gap-2 bg-red-500/20 text-red-500 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-red-500/30">
+    <div className="relative flex items-center justify-center">
+      <div className="absolute w-2 h-2 bg-red-500 rounded-full animate-ping opacity-75"></div>
+      <div className="relative w-1.5 h-1.5 bg-red-500 rounded-full"></div>
+    </div>
+    LIVE
+  </span>
+);
+
 export default function FixtureStack() {
   const [fixtures, setFixtures] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
-    fetch("http://localhost:8000/api/fixtures/upcoming")
-      .then(res => res.json())
-      .then(data => setFixtures(data))
-      .catch(err => console.error(err));
+    const fetchFixtures = () => {
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/fixtures/upcoming`)
+        .then(res => res.json())
+        .then(data => setFixtures(data))
+        .catch(err => console.error(err));
+    };
+    fetchFixtures();
+    const interval = setInterval(fetchFixtures, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   if (fixtures.length === 0) return null;
@@ -101,7 +116,7 @@ export default function FixtureStack() {
                 <div className="flex justify-between items-center w-full absolute top-6 px-10">
                    <div className="text-gray-400 font-bold uppercase tracking-widest text-xs flex items-center gap-3">
                      {fixture.date} 
-                     <Countdown dateStr={fixture.date} timeStr={fixture.time_local} />
+                     {fixture.status === "LIVE" ? <LiveBadge /> : <Countdown dateStr={fixture.date} timeStr={fixture.time_local} />}
                    </div>
                    <div className="text-gray-400 font-bold uppercase tracking-widest text-xs">{fixture.venue}</div>
                 </div>

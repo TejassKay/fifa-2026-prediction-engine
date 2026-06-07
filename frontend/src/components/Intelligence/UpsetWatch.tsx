@@ -9,7 +9,7 @@ export default function UpsetWatch() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("http://localhost:8000/api/intelligence/upsets")
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/intelligence/upsets`)
       .then(res => res.json())
       .then(data => {
         setUpsets(data);

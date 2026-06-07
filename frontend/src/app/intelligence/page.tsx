@@ -12,8 +12,8 @@ export default function IntelligenceCenter() {
 
   useEffect(() => {
     Promise.all([
-      fetch("http://localhost:8000/api/intelligence/upsets").then(res => res.json()),
-      fetch("http://localhost:8000/api/intelligence/finals").then(res => res.json())
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/intelligence/upsets`).then(res => res.json()),
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/intelligence/finals`).then(res => res.json())
     ]).then(([uData, fData]) => {
       setUpsets(uData.slice(0, 3));     // Top 3 Alerts
       setFinals(fData.slice(0, 4));     // Top 4 Finals

@@ -12,7 +12,7 @@ export default function RoadToGloryPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("http://localhost:8000/api/predictions/champion")
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/predictions/champion`)
       .then(res => res.json())
       .then(data => {
         setChampions(data);
@@ -30,7 +30,7 @@ export default function RoadToGloryPage() {
 
   useEffect(() => {
     if (selectedTeam) {
-      fetch(`http://localhost:8000/api/teams/${selectedTeam}`)
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/teams/${selectedTeam}`)
         .then(res => res.json())
         .then(data => setTeamStats(data))
         .catch(err => console.error(err));

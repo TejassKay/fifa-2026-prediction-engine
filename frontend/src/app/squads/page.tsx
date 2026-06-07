@@ -35,7 +35,7 @@ export default function SquadsPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetch("http://localhost:8000/api/teams")
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/teams`)
       .then((res) => res.json())
       .then((data) => setTeams(data))
       .catch((err) => console.error("Error fetching teams:", err));
@@ -44,7 +44,7 @@ export default function SquadsPage() {
   useEffect(() => {
     if (selectedTeam) {
       setLoading(true);
-      fetch(`http://localhost:8000/api/teams/${selectedTeam}/squad`)
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/teams/${selectedTeam}/squad`)
         .then(res => res.json())
         .then(squad => {
           setSquadData(squad);
