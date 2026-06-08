@@ -99,7 +99,7 @@ export default function FixtureStack() {
                 x: 0,
                 rotateZ: 0
               }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              transition={{ type: "spring", stiffness: 80, damping: 20 }}
               onClick={isTop ? handleNext : undefined}
             >
               <div className="absolute inset-0 flex pointer-events-none opacity-20 transition-opacity">
