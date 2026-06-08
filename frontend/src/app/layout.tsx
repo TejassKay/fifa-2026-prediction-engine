@@ -8,6 +8,7 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const oswald = Oswald({ subsets: ["latin"], variable: "--font-heading" });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://www.fifawc26hub.com"),
   title: "Fifa WC 26 Hub",
   description: "Global Prediction Engine and Dashboard for the 2026 World Cup",
 };
