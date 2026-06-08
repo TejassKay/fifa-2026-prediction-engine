@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { getFlagUrl, getTeamColorHex, getFlagGradientByName } from "@/lib/flags";
 import TeamSelector from "@/components/SquadExplorer/TeamSelector";
 import TeamIdentityHeader from "@/components/SquadExplorer/TeamIdentityHeader";
+import ClubBadge from "@/components/SquadExplorer/ClubBadge";
 import TeamAtmosphere from "@/components/Atmosphere/TeamAtmosphere";
 import PlayerRadarChart from "@/components/SquadExplorer/PlayerRadarChart";
 import PlayerMarketValueChart from "@/components/SquadExplorer/PlayerMarketValueChart";
@@ -58,6 +59,44 @@ export default function SquadsPage() {
     }
   }, [selectedTeam]);
 
+  useEffect(() => {
+    let currentAudio: HTMLAudioElement | null = null;
+    
+    if (selectedPlayer) {
+      const name = selectedPlayer.name.toLowerCase();
+      try {
+        if (name.includes("messi")) {
+          currentAudio = new Audio("/sounds/Messi.mp3");
+        } else if (name.includes("ronaldo")) {
+          currentAudio = new Audio("/sounds/Ronaldo.mp3");
+        } else if (name.includes("de bruyne")) {
+          currentAudio = new Audio("/sounds/KDB.mp3");
+        } else if (name.includes("haaland")) {
+          currentAudio = new Audio("/sounds/Haaland.mp3");
+        } else if (name.includes("neymar")) {
+          currentAudio = new Audio("/sounds/Neymar.mp3");
+        }
+        
+        if (currentAudio) {
+          currentAudio.play().catch(e => console.log(e));
+        }
+      } catch (err) {}
+    }
+    
+    return () => {
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+      }
+    };
+  }, [selectedPlayer]);
+
+  const isGoat = selectedPlayer && (
+    selectedPlayer.name.toLowerCase().includes("messi") || 
+    selectedPlayer.name.toLowerCase().includes("ronaldo") || 
+    selectedPlayer.name.toLowerCase().includes("neymar")
+  );
+
   return (
     <div className="relative w-full h-[calc(100vh-3rem)] md:h-[calc(100vh-5rem)] flex flex-col font-sans bg-transparent rounded-xl overflow-hidden shadow-2xl border border-white/10">
       {/* 2D AMBIENT BACKGROUND LAYERS */}
@@ -108,7 +147,7 @@ export default function SquadsPage() {
                    .filter((p: any) => p.name && p.name.trim() !== '')
                    .map((p: any) => (
                       <div 
-                        key={p.name} 
+                        key={p.name}
                         onClick={() => setSelectedPlayer(p)}
                         className={`flex items-center p-3 rounded-lg cursor-pointer transform transition-all duration-200 hover:scale-[1.02] shrink-0 ${selectedPlayer?.name === p.name ? 'bg-white/10 border border-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.2)]' : 'border border-transparent hover:bg-white/5'}`}
                       >
@@ -139,6 +178,23 @@ export default function SquadsPage() {
                 className="relative w-full h-[250px] md:h-[320px] rounded-3xl overflow-hidden glass-panel border border-white/5 flex items-end p-5 md:p-8 shadow-2xl"
                 style={{ background: `linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.2) 100%), ${getTeamColorHex(squadData?.team)}20` }}
               >
+                {/* GOAT Easter Egg Effect */}
+                {isGoat && (
+                  <div className="absolute inset-0 z-0 overflow-hidden opacity-40 pointer-events-none">
+                    {Array.from({ length: 15 }).map((_, i) => (
+                      <motion.div
+                        key={i}
+                        initial={{ y: 350, opacity: 0, rotate: Math.random() * 90 - 45 }}
+                        animate={{ y: -100, opacity: [0, 1, 0], rotate: Math.random() * 90 - 45 }}
+                        transition={{ duration: 2 + Math.random() * 3, repeat: Infinity, delay: Math.random() * 2 }}
+                        className="absolute bottom-0 text-5xl md:text-7xl drop-shadow-2xl"
+                        style={{ left: `${Math.random() * 100}%` }}
+                      >
+                        🐐
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
                 {/* Non-transparent image rendered with gradient blending */}
                 {selectedPlayer.image_url ? (
                   <img 
@@ -158,12 +214,32 @@ export default function SquadsPage() {
 
                 <div className="relative z-20 flex flex-col max-w-[70%] md:max-w-[60%]">
                    <span className="text-[100px] md:text-[140px] font-black leading-none tracking-tighter text-white/5 absolute -top-10 md:-top-16 -left-4 md:-left-6 select-none">{selectedPlayer.jersey_number || '-'}</span>
-                   <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter text-white drop-shadow-lg leading-[0.85]">{selectedPlayer.name}</h1>
+                   <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter text-white drop-shadow-lg leading-[0.85] flex flex-wrap items-end gap-3 md:gap-4">
+                     {selectedPlayer.name}
+                     {selectedPlayer.dob && (
+                       <span className="ml-2 px-3 py-1.5 md:px-4 md:py-2 bg-black/40 text-emerald-400 text-xs md:text-sm rounded-xl border border-emerald-400/30 font-black tracking-widest shrink-0 mb-1 md:mb-2 backdrop-blur-md shadow-2xl uppercase">
+                          {(() => {
+                            const parts = selectedPlayer.dob.split("/");
+                            if (parts.length === 3) {
+                              const dobDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+                              const ageDate = new Date(Date.now() - dobDate.getTime());
+                              return `${Math.abs(ageDate.getUTCFullYear() - 1970)} YEARS OLD`;
+                            }
+                            return "N/A";
+                          })()}
+                       </span>
+                     )}
+                   </h1>
                    <div className="flex flex-wrap items-center gap-2 md:gap-4 mt-4 md:mt-6">
-                      <img src={getFlagUrl(squadData?.team)} className="w-6 h-4 md:w-8 md:h-5 rounded-sm shadow-sm" />
-                      <span className={`px-2 md:px-3 py-1 text-xs md:text-sm font-black rounded-sm border ${getPosTagColor(selectedPlayer.position)}`}>{selectedPlayer.position}</span>
+                      <img src={getFlagUrl(squadData?.team)} className="w-6 h-4 md:w-8 md:h-5 rounded-sm shadow-sm shrink-0" />
+                      <span className={`px-2 md:px-3 py-1 text-xs md:text-sm font-black rounded-sm border shrink-0 ${getPosTagColor(selectedPlayer.position)}`}>{selectedPlayer.position}</span>
                       <span className="text-lg md:text-xl font-bold text-gray-300">|</span>
-                      <span className="text-lg md:text-2xl font-bold text-white uppercase tracking-widest truncate">{selectedPlayer.club || "Unknown"}</span>
+                      <div className="flex items-center gap-2 md:gap-3 min-w-0">
+                        {selectedPlayer.club && selectedPlayer.club !== "Unknown" && (
+                           <ClubBadge clubName={selectedPlayer.club} className="w-6 h-6 md:w-8 md:h-8 drop-shadow-xl" />
+                        )}
+                        <span className="text-sm md:text-base font-bold text-white uppercase tracking-widest leading-tight max-w-[200px] md:max-w-[300px]">{selectedPlayer.club || "Unknown"}</span>
+                      </div>
                    </div>
                 </div>
               </div>

@@ -14,6 +14,8 @@ export default function BracketPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
+  const [startY, setStartY] = useState(0);
+  const [scrollTop, setScrollTop] = useState(0);
 
   useEffect(() => {
     async function load() {
@@ -25,11 +27,16 @@ export default function BracketPage() {
         setBracket(null);
       } finally {
         setLoading(false);
-        // Center scroll horizontally initially
+        // Center scroll horizontally and vertically initially
         setTimeout(() => {
           if (containerRef.current) {
-            const scrollTarget = (2600 - window.innerWidth) / 2;
-            containerRef.current.scrollTo({ left: scrollTarget > 0 ? scrollTarget : 0, behavior: "smooth" });
+            const scrollTargetX = (2600 - containerRef.current.clientWidth) / 2;
+            const scrollTargetY = (1200 - containerRef.current.clientHeight) / 2;
+            containerRef.current.scrollTo({ 
+              left: scrollTargetX > 0 ? scrollTargetX : 0, 
+              top: scrollTargetY > 0 ? scrollTargetY : 0,
+              behavior: "smooth" 
+            });
           }
         }, 100);
       }
@@ -42,6 +49,8 @@ export default function BracketPage() {
     setIsDragging(true);
     setStartX(e.pageX - containerRef.current.offsetLeft);
     setScrollLeft(containerRef.current.scrollLeft);
+    setStartY(e.pageY - containerRef.current.offsetTop);
+    setScrollTop(containerRef.current.scrollTop);
   };
 
   const handleMouseLeave = () => {
@@ -56,8 +65,11 @@ export default function BracketPage() {
     if (!isDragging || !containerRef.current) return;
     e.preventDefault();
     const x = e.pageX - containerRef.current.offsetLeft;
-    const walk = (x - startX) * 2; // scroll-fast
-    containerRef.current.scrollLeft = scrollLeft - walk;
+    const y = e.pageY - containerRef.current.offsetTop;
+    const walkX = (x - startX) * 2;
+    const walkY = (y - startY) * 2;
+    containerRef.current.scrollLeft = scrollLeft - walkX;
+    containerRef.current.scrollTop = scrollTop - walkY;
   };
 
   if (loading) {
@@ -224,14 +236,14 @@ export default function BracketPage() {
 
       <div 
         ref={containerRef}
-        className={`w-full overflow-x-auto overflow-y-hidden select-none custom-scrollbar ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+        className={`w-full h-[80vh] min-h-[600px] overflow-auto select-none custom-scrollbar border-y border-white/5 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
         onMouseDown={handleMouseDown}
         onMouseLeave={handleMouseLeave}
         onMouseUp={handleMouseUp}
         onMouseMove={handleMouseMove}
       >
         <div 
-          className="relative mx-auto bg-black/20 border-y border-white/5"
+          className="relative mx-auto bg-black/20"
           style={{ width: TOTAL_WIDTH, height: TOTAL_HEIGHT }}
         >
           {/* SVG Connector Layer */}

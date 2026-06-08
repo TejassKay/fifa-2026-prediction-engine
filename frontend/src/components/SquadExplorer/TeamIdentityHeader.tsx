@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { getFlagUrl, getTeamColorHex, getTeamSecondaryColorHex, getFlagGradientByName } from "@/lib/flags";
+import { getFlagUrl, getTeamColorHex, getTeamSecondaryColorHex, getFlagGradientByName, getWorldCupStars } from "@/lib/flags";
 import { getTeamNickname } from "@/lib/teams";
 import TeamSelector from "./TeamSelector";
 import { Trophy, Globe2 } from "lucide-react";
@@ -66,15 +66,30 @@ export default function TeamIdentityHeader({ squadData, teams, selectedTeam, onS
                {nickname}
             </motion.div>
 
-            <motion.h2 
-              key={`nick-${selectedTeam}`}
-              initial={{ y: 10, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              className="text-[10px] md:text-xs font-bold uppercase tracking-[0.3em] text-white/50 mb-1 relative z-10"
-              style={{ color: secondaryColor }}
-            >
-              {nickname}
-            </motion.h2>
+            <div className="flex items-center gap-3 mb-1 relative z-10">
+              {getWorldCupStars(selectedTeam) > 0 && (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.8 }} 
+                  animate={{ opacity: 1, scale: 1 }} 
+                  className="flex items-center gap-0.5"
+                >
+                  {Array.from({ length: getWorldCupStars(selectedTeam) }).map((_, i) => (
+                    <svg key={i} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 md:w-4 md:h-4 text-amber-400 drop-shadow-[0_0_5px_rgba(251,191,36,0.6)]">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                    </svg>
+                  ))}
+                </motion.div>
+              )}
+              <motion.h2 
+                key={`nick-${selectedTeam}`}
+                initial={{ y: 10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                className="text-[10px] md:text-xs font-bold uppercase tracking-[0.3em] text-white/50"
+                style={{ color: secondaryColor }}
+              >
+                {nickname}
+              </motion.h2>
+            </div>
             <div className="flex items-center gap-4 relative z-10">
               <h1 className="text-3xl md:text-5xl font-black uppercase tracking-tighter text-white font-heading drop-shadow-lg leading-none">
                 {selectedTeam}

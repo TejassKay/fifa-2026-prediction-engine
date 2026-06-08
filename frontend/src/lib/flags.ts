@@ -302,3 +302,18 @@ export const getTeamSecondaryColorHex = (name: string | undefined | null) => {
 
   return hexMap[name] || "#A3A3A3";
 };
+
+export const getWorldCupStars = (name: string | undefined | null): number => {
+  if (!name) return 0;
+  const winners: Record<string, number> = {
+    "Brazil": 5,
+    "Germany": 4,
+    "Italy": 4,
+    "Argentina": 3,
+    "France": 2,
+    "Uruguay": 2,
+    "England": 1,
+    "Spain": 1
+  };
+  return winners[name] || 0;
+};

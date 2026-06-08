@@ -263,7 +263,6 @@ def get_team_squad(team_id: str):
     
     team = next((s for s in squads if s["team"].lower() == team_id.lower()), None)
     if team:
-        # Call the existing stats method to get progression and fifa rank
         stats = get_team_stats(team["team"])
         
         rich_team = {
@@ -273,8 +272,9 @@ def get_team_squad(team_id: str):
             "stats": stats,
             "players": []
         }
+        
         for p in team["players"]:
-            p_name = p.get("name")
+            p_name = p.get("name") or ""
             intel = players_db.get(p_name, {})
             # Merge base squad data with intelligence metrics
             merged = {**p, **intel}

@@ -75,7 +75,7 @@ export default function FixtureStack() {
   };
 
   return (
-    <div className="relative h-[450px] w-full max-w-4xl mx-auto mt-12 mb-20 flex justify-center">
+    <div className="relative h-[550px] md:h-[450px] w-full max-w-4xl mx-auto mt-12 mb-20 flex justify-center">
         {fixtures.map((fixture, index) => {
           const isTop = index === currentIndex;
           const isGone = index < currentIndex;
@@ -112,32 +112,32 @@ export default function FixtureStack() {
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 rounded-full border-2 border-white opacity-30 z-0"></div>
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-white opacity-50 z-0"></div>
               
-              <div className="relative z-10 p-6 md:p-10 flex flex-col items-center text-center h-full justify-center">
-                <div className="flex justify-between items-center w-full absolute top-6 px-10">
-                   <div className="text-gray-400 font-bold uppercase tracking-widest text-xs flex items-center gap-3">
+              <div className="relative z-10 p-4 md:p-10 flex flex-col items-center text-center h-full justify-center">
+                <div className="flex flex-col md:flex-row justify-between items-center w-full absolute top-4 md:top-6 px-4 md:px-10 gap-2">
+                   <div className="text-gray-400 font-bold uppercase tracking-widest text-[10px] md:text-xs flex flex-wrap items-center justify-center gap-2 md:gap-3">
                      {fixture.date} 
                      {fixture.status === "LIVE" ? <LiveBadge /> : <Countdown dateStr={fixture.date} timeStr={fixture.time_local} />}
                    </div>
-                   <div className="text-gray-400 font-bold uppercase tracking-widest text-xs">{fixture.venue}</div>
+                   <div className="text-gray-400 font-bold uppercase tracking-widest text-[10px] md:text-xs text-center">{fixture.venue}</div>
                 </div>
                 
-                <div className="w-full flex flex-col md:flex-row items-center justify-between gap-8 md:gap-12 mt-4">
+                <div className="w-full flex flex-col md:flex-row items-center justify-between gap-6 md:gap-12 mt-12 md:mt-4">
                   <div className="flex-1 text-center md:text-right flex flex-col items-center md:items-end">
-                    <div className="flex flex-col md:flex-row items-center gap-4">
-                      <h3 className="text-4xl md:text-5xl font-black uppercase text-white drop-shadow-md">{fixture.home_team}</h3>
+                    <div className="flex flex-col md:flex-row items-center gap-2 md:gap-4">
+                      <h3 className="text-3xl md:text-5xl font-black uppercase text-white drop-shadow-md">{fixture.home_team}</h3>
                       <img src={getFlagUrl(fixture.home_team)} alt={fixture.home_team} className="w-12 h-8 object-cover rounded shadow-lg border border-white/20 hidden md:block" />
                     </div>
-                    <img src={getFlagUrl(fixture.home_team)} alt={fixture.home_team} className="w-12 h-8 object-cover rounded shadow-lg border border-white/20 md:hidden mt-2" />
+                    <img src={getFlagUrl(fixture.home_team)} alt={fixture.home_team} className="w-10 h-6 object-cover rounded shadow-lg border border-white/20 md:hidden mt-2" />
                     
-                    <div className="text-emerald-400 font-bold uppercase tracking-widest mt-2 text-xl">
+                    <div className="text-emerald-400 font-bold uppercase tracking-widest mt-2 text-sm md:text-xl">
                       {(fixture.prediction.probabilities.home_win * 100).toFixed(1)}% WIN
                     </div>
                   </div>
                   
                   <div className="flex flex-col items-center justify-center shrink-0 z-20">
-                    <div className="glass-panel px-6 py-4 mb-4 shadow-xl">
-                      <div className="text-sm text-gray-400 font-bold tracking-widest mb-1 text-center">MOST LIKELY SCORE</div>
-                      <div className="text-4xl md:text-5xl font-black text-white text-center">
+                    <div className="glass-panel px-4 md:px-6 py-2 md:py-4 mb-4 shadow-xl">
+                      <div className="text-[10px] md:text-sm text-gray-400 font-bold tracking-widest mb-1 text-center">MOST LIKELY SCORE</div>
+                      <div className="text-3xl md:text-5xl font-black text-white text-center">
                         {fixture.prediction.top_scorelines[0].score.replace("-", " - ")}
                       </div>
                     </div>
@@ -153,13 +153,13 @@ export default function FixtureStack() {
                   </div>
                   
                   <div className="flex-1 text-center md:text-left flex flex-col items-center md:items-start">
-                    <div className="flex flex-col md:flex-row items-center gap-4">
+                    <div className="flex flex-col md:flex-row items-center gap-2 md:gap-4">
                       <img src={getFlagUrl(fixture.away_team)} alt={fixture.away_team} className="w-12 h-8 object-cover rounded shadow-lg border border-white/20 hidden md:block" />
-                      <h3 className="text-4xl md:text-5xl font-black uppercase text-white drop-shadow-md">{fixture.away_team}</h3>
+                      <h3 className="text-3xl md:text-5xl font-black uppercase text-white drop-shadow-md">{fixture.away_team}</h3>
                     </div>
-                    <img src={getFlagUrl(fixture.away_team)} alt={fixture.away_team} className="w-12 h-8 object-cover rounded shadow-lg border border-white/20 md:hidden mt-2" />
+                    <img src={getFlagUrl(fixture.away_team)} alt={fixture.away_team} className="w-10 h-6 object-cover rounded shadow-lg border border-white/20 md:hidden mt-2" />
                     
-                    <div className="text-emerald-400 font-bold uppercase tracking-widest mt-2 text-xl">
+                    <div className="text-emerald-400 font-bold uppercase tracking-widest mt-2 text-sm md:text-xl">
                       {(fixture.prediction.probabilities.away_win * 100).toFixed(1)}% WIN
                     </div>
                   </div>

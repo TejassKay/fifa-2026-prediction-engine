@@ -15,6 +15,7 @@ export default function MatchHub() {
   const [matchData, setMatchData] = useState<any>(null);
   const [teamStats, setTeamStats] = useState<{home: any, away: any} | null>(null);
   const [loading, setLoading] = useState(true);
+  const [tooltip, setTooltip] = useState<{show: boolean, text: string, color: string, x: number, y: number}>({show: false, text: "", color: "", x: 0, y: 0});
 
   useEffect(() => {
     fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/match/${id}`)
@@ -204,16 +205,25 @@ export default function MatchHub() {
                  </div>
                  
                  {/* Segmented Flex-Bar */}
-                 <div className="w-full h-8 flex rounded-full overflow-hidden font-black text-[10px] md:text-xs tracking-widest border border-white/10 shadow-inner">
-                   <div className="bg-emerald-500/80 flex items-center justify-center text-black overflow-hidden whitespace-nowrap" style={{ width: `${homeProb}%` }}>
-                     {parseFloat(homeProb) > 12 && `${homeProb}%`}
-                   </div>
-                   <div className="bg-neutral-600/80 flex items-center justify-center text-white overflow-hidden whitespace-nowrap" style={{ width: `${drawProb}%` }}>
-                     {parseFloat(drawProb) > 12 && `${drawProb}%`}
-                   </div>
-                   <div className="bg-rose-500/80 flex items-center justify-center text-black overflow-hidden whitespace-nowrap" style={{ width: `${awayProb}%` }}>
-                     {parseFloat(awayProb) > 12 && `${awayProb}%`}
-                   </div>
+                 <div 
+                   className="group w-full h-8 flex rounded-full overflow-hidden font-black text-[10px] md:text-xs tracking-widest border border-white/10 shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:shadow-[0_0_25px_rgba(255,255,255,0.3)] transition-all cursor-crosshair"
+                   onMouseLeave={() => setTooltip(prev => ({...prev, show: false}))}
+                 >
+                   <div 
+                     className="bg-emerald-500/80 hover:bg-emerald-400 transition-colors" 
+                     style={{ width: `${homeProb}%` }}
+                     onMouseMove={(e) => setTooltip({show: true, text: `${homeProb}% Home Win`, color: 'text-emerald-400', x: e.clientX, y: e.clientY})}
+                   ></div>
+                   <div 
+                     className="bg-neutral-600/80 hover:bg-neutral-500 transition-colors" 
+                     style={{ width: `${drawProb}%` }}
+                     onMouseMove={(e) => setTooltip({show: true, text: `${drawProb}% Draw`, color: 'text-neutral-400', x: e.clientX, y: e.clientY})}
+                   ></div>
+                   <div 
+                     className="bg-rose-500/80 hover:bg-rose-400 transition-colors" 
+                     style={{ width: `${awayProb}%` }}
+                     onMouseMove={(e) => setTooltip({show: true, text: `${awayProb}% Away Win`, color: 'text-rose-400', x: e.clientX, y: e.clientY})}
+                   ></div>
                  </div>
                </div>
             </motion.div>
@@ -375,8 +385,19 @@ export default function MatchHub() {
                </Link>
             </div>
         </motion.div>
-
       </div>
+      
+      {/* Floating Tooltip */}
+      {tooltip.show && (
+        <div 
+          className="fixed z-[100] pointer-events-none transform -translate-x-1/2 -translate-y-full pb-3"
+          style={{ left: tooltip.x, top: tooltip.y }}
+        >
+          <div className="bg-[#1a1a1a] border border-white/10 px-3 py-1.5 rounded-lg shadow-xl backdrop-blur-md whitespace-nowrap">
+            <span className={`font-black text-xs uppercase tracking-widest ${tooltip.color}`}>{tooltip.text}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

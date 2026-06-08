@@ -27,27 +27,60 @@ def match_player(squad_name, df_players):
     # create normalized name col in df_players if not exists
     if 'norm_name' not in df_players.columns:
         df_players['norm_name'] = df_players['name'].apply(normalize_name)
+        
+    clean_squad = normalize_name(squad_name.replace(" JR", "").replace(" SR", ""))
+    
+    # Match 0: Clean squad exact match
+    match = df_players[df_players['norm_name'] == clean_squad]
+    if len(match) > 0:
+        return match.sort_values('market_value_in_eur', ascending=False).iloc[0]
     
     # Match 1: Full name match
     match = df_players[df_players['norm_name'] == first_last]
-    if len(match) == 1:
-        return match.iloc[0]
+    if len(match) > 0:
+        return match.sort_values('market_value_in_eur', ascending=False).iloc[0]
         
     match = df_players[df_players['norm_name'] == last_first]
-    if len(match) == 1:
-        return match.iloc[0]
+    if len(match) > 0:
+        return match.sort_values('market_value_in_eur', ascending=False).iloc[0]
 
-    # Match 2: Contains both first and last
+    # Match 1.5: No-space match (handles "SON Heungmin" vs "Heung-min Son")
+    squad_nospace1 = f"{first}{last}".replace("-", "").replace(" ", "")
+    squad_nospace2 = f"{last}{first}".replace("-", "").replace(" ", "")
+    df_nospace = df_players['norm_name'].str.replace("-", "").str.replace(" ", "")
+    
+    match = df_players[(df_nospace == squad_nospace1) | (df_nospace == squad_nospace2)]
+    if len(match) > 0:
+        return match.sort_values('market_value_in_eur', ascending=False).iloc[0]
+
+    # Helper for word boundary regex
+    def word_match(word):
+        return r'\b' + word + r'\b'
+
+    # Match 2: Contains both first and last as exact words
     if first and last:
-        match = df_players[df_players['norm_name'].str.contains(first, regex=False, na=False) & df_players['norm_name'].str.contains(last, regex=False, na=False)]
-        if len(match) == 1:
-            return match.iloc[0]
+        match = df_players[df_players['norm_name'].str.contains(word_match(first), regex=True, na=False) & df_players['norm_name'].str.contains(word_match(last), regex=True, na=False)]
+        if len(match) > 0:
+            return match.sort_values('market_value_in_eur', ascending=False).iloc[0]
             
-    # Match 3: Just last name match
-    if last:
-        match = df_players[df_players['norm_name'].str.contains(last, regex=False, na=False)]
-        if len(match) == 1:
-            return match.iloc[0]
+    # Fallback to loose word match using all words in clean_squad
+    parts_clean = clean_squad.replace("-", " ").split()
+    if len(parts_clean) > 0:
+        # Require all words >= 3 chars to match
+        sig_words = [w for w in parts_clean if len(w) >= 3]
+        if sig_words:
+            mask = pd.Series(True, index=df_players.index)
+            for w in sig_words:
+                mask = mask & df_players['norm_name'].str.contains(word_match(w), regex=True, na=False)
+            match = df_players[mask]
+            if len(match) > 0:
+                return match.sort_values('market_value_in_eur', ascending=False).iloc[0]
+                
+    # Match 3: Just last name match as exact word
+    if len(last) > 3: # Only do this for reasonably long last names to avoid matching everyone
+        match = df_players[df_players['norm_name'].str.contains(word_match(last), regex=True, na=False)]
+        if len(match) > 0:
+            return match.sort_values('market_value_in_eur', ascending=False).iloc[0]
 
     return None
 

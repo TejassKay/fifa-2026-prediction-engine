@@ -97,7 +97,6 @@ export default function SquadVisualization({ squadData, loading, selectedPlayer,
           <AnimatePresence>
             {filteredPlayers.map((player: any) => {
               const isSelected = selectedPlayer?.name === player.name;
-              // If a player is selected and this is not them, dim it
               const isDimmed = selectedPlayer && !isSelected;
 
               return (
@@ -126,13 +125,40 @@ export default function SquadVisualization({ squadData, loading, selectedPlayer,
                   <div className={`flex items-center justify-center w-10 h-10 rounded-lg border ${getPositionColor(player.position)} mr-4 flex-shrink-0 font-bold text-sm relative z-10`}>
                     {player.position}
                   </div>
-                  <div className="flex-grow min-w-0 relative z-10">
-                    <h3 className={`font-medium truncate transition-colors ${isSelected ? "text-white" : "text-gray-200 group-hover:text-white"}`}>
-                      {player.name}
-                    </h3>
-                    <p className={`text-xs truncate mt-0.5 transition-colors ${isSelected ? "text-indigo-200" : "text-gray-500"}`}>
-                      {player.club}
-                    </p>
+                  <div className="flex-grow min-w-0 relative z-10 flex flex-col justify-center">
+                    <div className="flex items-center space-x-2">
+                      <h3 className={`font-medium truncate transition-colors ${isSelected ? "text-white" : "text-gray-200 group-hover:text-white"}`}>
+                        {player.name}
+                      </h3>
+                      {player.dob && (
+                        <span className="px-1.5 py-0.5 bg-gray-800 text-gray-400 text-[10px] rounded border border-gray-700 font-medium">
+                          {(() => {
+                            const parts = player.dob.split("/");
+                            if (parts.length === 3) {
+                              const dobDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+                              const ageDate = new Date(Date.now() - dobDate.getTime());
+                              return Math.abs(ageDate.getUTCFullYear() - 1970) + " YRS";
+                            }
+                            return "N/A";
+                          })()}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center mt-1">
+                      {player.club && player.club !== "Unknown" && (
+                        <img 
+                          src={`https://ui-avatars.com/api/?name=${encodeURIComponent(player.club.replace(/\([^)]*\)/g, '').trim())}&background=random&color=fff&rounded=true&bold=true&size=32`} 
+                          alt={`${player.club} badge`}
+                          className="w-4 h-4 rounded-full mr-1.5 object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                      )}
+                      <p className={`text-xs truncate transition-colors ${isSelected ? "text-indigo-200" : "text-gray-500"}`}>
+                        {player.club || "Unknown Club"}
+                      </p>
+                    </div>
                   </div>
                   <div className={`transition-colors relative z-10 ${isSelected ? "text-indigo-400" : "text-gray-600 group-hover:text-indigo-400"}`}>
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

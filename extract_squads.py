@@ -55,18 +55,39 @@ def extract():
                         continue
                     
                     # Due to None columns in pdfplumber, let's filter them out
-                    clean_row = [str(x).replace('\n', ' ') for x in row if x is not None]
+                    clean_row = [str(x).replace('\n', ' ').strip() for x in row if x is not None and str(x).strip() != '']
                     
-                    # Columns usually: '#', 'POS', 'PLAYER NAME', 'FIRST NAME(S)', 'LAST NAME(S)', 'NAME ON SHIRT', 'DOB', 'CLUB', 'HEIGHT (CM)'
-                    # Let's map dynamically based on length or just fixed indices on the original row
-                    # 1: POS, 2: PLAYER NAME, 8: DOB, 9: CLUB, 11: HEIGHT (CM)
-                    if len(row) >= 12:
-                        pos = row[1]
-                        player_name = row[2]
-                        dob = row[8]
-                        club = row[9]
-                        height = row[11]
+                    if len(clean_row) >= 3:
+                        pos = clean_row[1]
+                        player_name = clean_row[2]
                         
+                        dob = None
+                        club = None
+                        height = None
+                        
+                        # Find dob by regex
+                        dob_idx = -1
+                        for j, val in enumerate(clean_row):
+                            if re.match(r'^\d{2}/\d{2}/\d{4}$', val):
+                                dob_idx = j
+                                dob = val
+                                break
+                                
+                        if dob_idx != -1:
+                            if dob_idx + 1 < len(clean_row):
+                                club = clean_row[dob_idx + 1]
+                            if dob_idx + 2 < len(clean_row):
+                                height = clean_row[dob_idx + 2]
+                                if not height.isdigit() and len(height) > 3:
+                                    # Sometimes club is split or height is missing
+                                    club = club + " " + height
+                                    height = None
+                        else:
+                            # Fallback if no date found
+                            dob = clean_row[-3] if len(clean_row) >= 4 else None
+                            club = clean_row[-2] if len(clean_row) >= 3 else None
+                            height = clean_row[-1] if len(clean_row) >= 2 else None
+                            
                         players.append({
                             "name": player_name,
                             "position": pos,

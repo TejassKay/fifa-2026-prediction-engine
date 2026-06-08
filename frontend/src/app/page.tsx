@@ -47,15 +47,17 @@ export default function Home() {
       <div className="max-w-7xl mx-auto space-y-8">
         
         {/* Header */}
-        <header className="mb-8">
-          <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs tracking-widest uppercase mb-2">
+        <header className="mb-12 flex flex-col items-center text-center relative pt-4">
+          <div className="absolute left-1/2 -translate-x-1/2 -top-[200px] w-[1000px] h-[500px] bg-indigo-600/30 rounded-[100%] blur-[100px] pointer-events-none z-0" />
+          
+          <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs tracking-widest uppercase mb-3 relative z-10">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             Live Forecast
           </div>
-          <h1 className="text-4xl md:text-6xl font-black tracking-tight text-white uppercase">
+          <h1 className="text-5xl md:text-7xl font-black tracking-tight uppercase bg-gradient-to-br from-indigo-100 via-blue-200 to-purple-200 bg-clip-text text-transparent pb-1 relative z-10">
             Fifa WC 26 Hub
           </h1>
-          <p className="text-gray-400 text-lg md:text-xl font-medium mt-2">
+          <p className="text-indigo-200/60 text-lg md:text-xl font-medium mt-3 max-w-2xl leading-relaxed relative z-10">
             Your central hub for the most thrilling storylines, predictions, and upsets of the 2026 FIFA World Cup.
           </p>
         </header>

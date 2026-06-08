@@ -23,7 +23,8 @@ export default function PredictorPage() {
   useEffect(() => {
     async function loadTeams() {
       const champs = await fetchChampions();
-      setTeamList(champs.map((c: any) => c.team));
+      const sorted = champs.map((c: any) => c.team).sort((a: string, b: string) => a.localeCompare(b));
+      setTeamList(sorted);
     }
     loadTeams();
   }, []);
