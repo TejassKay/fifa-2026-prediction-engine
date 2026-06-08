@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getFlagGradientByName, getFlagUrl, getWorldCupStars } from "@/lib/flags";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function RoadToGloryPage() {
   const [champions, setChampions] = useState<any[]>([]);
@@ -104,15 +105,18 @@ export default function RoadToGloryPage() {
                   </p>
                 </div>
                 
-                <select 
-                  value={selectedTeam || ""}
-                  onChange={(e) => setSelectedTeam(e.target.value)}
-                  className="bg-black/50 backdrop-blur-md border border-white/20 text-white font-bold py-3 px-4 rounded-xl outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 w-full md:w-64 uppercase tracking-wide cursor-pointer transition-colors shadow-xl"
-                >
-                  {champions.map(c => (
-                    <option key={c.team} value={c.team} className="bg-[#111] text-white">{c.team}</option>
-                  ))}
-                </select>
+                <Select value={selectedTeam || ""} onValueChange={setSelectedTeam}>
+                  <SelectTrigger className="w-full md:w-64 bg-black/50 backdrop-blur-md border-white/20 text-white font-bold h-12 rounded-xl focus:ring-cyan-400 uppercase tracking-wide">
+                    <SelectValue placeholder="Select a team" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-neutral-900 border-white/10 max-h-[400px]">
+                    {[...champions].sort((a, b) => a.team.localeCompare(b.team)).map(c => (
+                      <SelectItem key={c.team} value={c.team} className="text-white focus:bg-white/10 font-bold uppercase tracking-wider cursor-pointer">
+                        {c.team}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
