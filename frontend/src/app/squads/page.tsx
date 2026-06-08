@@ -92,7 +92,7 @@ export default function SquadsPage() {
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative z-10">
       
       {/* LEFT COLUMN: ROSTER (w-1/4) */}
-      <div className="w-full md:w-1/4 h-full glass-panel border-r border-white/10 flex flex-col p-6 overflow-hidden backdrop-blur-2xl bg-black/60 shrink-0">
+      <div className="w-full md:w-1/4 h-[40%] md:h-full glass-panel md:border-r border-b md:border-b-0 border-white/10 flex flex-col p-4 md:p-6 overflow-hidden backdrop-blur-2xl bg-black/60 shrink-0">
          {squadData && (
             <div className="flex flex-col flex-1 overflow-hidden">
                <h3 className="font-heading text-lg uppercase tracking-widest text-neutral-400 mb-4 border-b border-white/10 pb-2 flex items-center justify-between shrink-0">
@@ -123,7 +123,7 @@ export default function SquadsPage() {
       </div>
       
       {/* RIGHT COLUMN: BENTO DASHBOARD (w-3/4) */}
-      <div className="flex-1 p-6 lg:p-10 h-full overflow-y-auto">
+      <div className="flex-1 p-4 md:p-6 lg:p-10 h-full overflow-y-auto">
         <AnimatePresence mode="wait">
           {selectedPlayer ? (
             <motion.div 
@@ -136,7 +136,7 @@ export default function SquadsPage() {
             >
               {/* HERO CARD CONTAINER */}
               <div 
-                className="relative w-full h-[320px] rounded-3xl overflow-hidden glass-panel border border-white/5 flex items-end p-8 shadow-2xl"
+                className="relative w-full h-[250px] md:h-[320px] rounded-3xl overflow-hidden glass-panel border border-white/5 flex items-end p-5 md:p-8 shadow-2xl"
                 style={{ background: `linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.2) 100%), ${getTeamColorHex(squadData?.team)}20` }}
               >
                 {/* Non-transparent image rendered with gradient blending */}
@@ -156,14 +156,14 @@ export default function SquadsPage() {
                 {/* Blend overlay to hide hard bottom edges of the image */}
                 <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/40 to-transparent z-10" />
 
-                <div className="relative z-20 flex flex-col max-w-[60%]">
-                   <span className="text-[140px] font-black leading-none tracking-tighter text-white/5 absolute -top-16 -left-6 select-none">{selectedPlayer.jersey_number || '-'}</span>
-                   <h1 className="text-6xl font-black uppercase tracking-tighter text-white drop-shadow-lg leading-[0.85]">{selectedPlayer.name}</h1>
-                   <div className="flex items-center gap-4 mt-6">
-                      <img src={getFlagUrl(squadData?.team)} className="w-8 h-5 rounded-sm shadow-sm" />
-                      <span className={`px-3 py-1 text-sm font-black rounded-sm border ${getPosTagColor(selectedPlayer.position)}`}>{selectedPlayer.position}</span>
-                      <span className="text-xl font-bold text-gray-300">|</span>
-                      <span className="text-2xl font-bold text-white uppercase tracking-widest">{selectedPlayer.club || "Unknown"}</span>
+                <div className="relative z-20 flex flex-col max-w-[70%] md:max-w-[60%]">
+                   <span className="text-[100px] md:text-[140px] font-black leading-none tracking-tighter text-white/5 absolute -top-10 md:-top-16 -left-4 md:-left-6 select-none">{selectedPlayer.jersey_number || '-'}</span>
+                   <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter text-white drop-shadow-lg leading-[0.85]">{selectedPlayer.name}</h1>
+                   <div className="flex flex-wrap items-center gap-2 md:gap-4 mt-4 md:mt-6">
+                      <img src={getFlagUrl(squadData?.team)} className="w-6 h-4 md:w-8 md:h-5 rounded-sm shadow-sm" />
+                      <span className={`px-2 md:px-3 py-1 text-xs md:text-sm font-black rounded-sm border ${getPosTagColor(selectedPlayer.position)}`}>{selectedPlayer.position}</span>
+                      <span className="text-lg md:text-xl font-bold text-gray-300">|</span>
+                      <span className="text-lg md:text-2xl font-bold text-white uppercase tracking-widest truncate">{selectedPlayer.club || "Unknown"}</span>
                    </div>
                 </div>
               </div>

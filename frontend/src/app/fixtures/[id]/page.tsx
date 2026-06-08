@@ -205,14 +205,14 @@ export default function MatchHub() {
                  
                  {/* Segmented Flex-Bar */}
                  <div className="w-full h-8 flex rounded-full overflow-hidden font-black text-[10px] md:text-xs tracking-widest border border-white/10 shadow-inner">
-                   <div className="bg-emerald-500/80 flex items-center justify-center text-black" style={{ width: `${homeProb}%` }}>
-                     {homeProb}%
+                   <div className="bg-emerald-500/80 flex items-center justify-center text-black overflow-hidden whitespace-nowrap" style={{ width: `${homeProb}%` }}>
+                     {parseFloat(homeProb) > 12 && `${homeProb}%`}
                    </div>
-                   <div className="bg-neutral-600/80 flex items-center justify-center text-white" style={{ width: `${drawProb}%` }}>
-                     {drawProb}%
+                   <div className="bg-neutral-600/80 flex items-center justify-center text-white overflow-hidden whitespace-nowrap" style={{ width: `${drawProb}%` }}>
+                     {parseFloat(drawProb) > 12 && `${drawProb}%`}
                    </div>
-                   <div className="bg-rose-500/80 flex items-center justify-center text-black" style={{ width: `${awayProb}%` }}>
-                     {awayProb}%
+                   <div className="bg-rose-500/80 flex items-center justify-center text-black overflow-hidden whitespace-nowrap" style={{ width: `${awayProb}%` }}>
+                     {parseFloat(awayProb) > 12 && `${awayProb}%`}
                    </div>
                  </div>
                </div>
