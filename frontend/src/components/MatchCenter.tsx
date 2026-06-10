@@ -4,12 +4,17 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getFlagGradientByName, getFlagUrl } from "@/lib/flags";
 
-const PrecisionCountdown = ({ dateStr, timeStr }: { dateStr: string, timeStr?: string }) => {
+const PrecisionCountdown = ({ dateStr, timeStr, timestamp }: { dateStr: string, timeStr?: string, timestamp?: number }) => {
   const [timeLeft, setTimeLeft] = useState("");
 
   useEffect(() => {
-    const targetStr = timeStr ? `${dateStr}T${timeStr}:00` : `${dateStr}T00:00:00`;
-    const target = new Date(targetStr).getTime();
+    let target: number;
+    if (timestamp) {
+      target = timestamp;
+    } else {
+      const targetStr = timeStr ? `${dateStr}T${timeStr}:00` : `${dateStr}T00:00:00`;
+      target = new Date(targetStr).getTime();
+    }
     
     const update = () => {
       const now = new Date().getTime();
@@ -127,7 +132,7 @@ export default function MatchCenter() {
           <div className="text-xs text-gray-500 font-bold tracking-widest uppercase mb-4 text-center">
             <div>{matchData.date}</div>
             <div>{matchData.venue}</div>
-            {matchData.status === "LIVE" ? <LiveBadgeCenter /> : <PrecisionCountdown dateStr={matchData.date} timeStr={matchData.time_local} />}
+            {matchData.status === "LIVE" ? <LiveBadgeCenter /> : <PrecisionCountdown dateStr={matchData.date} timeStr={matchData.time_local} timestamp={matchData.timestamp} />}
           </div>
           
           <div className="flex flex-col items-center justify-center shrink-0">

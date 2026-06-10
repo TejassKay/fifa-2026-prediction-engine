@@ -17,8 +17,6 @@ export default function FixturesEditorClient({ pendingMatches, completedMatches 
   
   const [scorers, setScorers] = useState<any[]>([]);
   const [squads, setSquads] = useState<{home: any[], away: any[]}>({home: [], away: []});
-  const [searchTerm, setSearchTerm] = useState('');
-  const [minute, setMinute] = useState<number | ''>('');
   const [loadingSquads, setLoadingSquads] = useState(false);
   const [saving, setSaving] = useState(false);
   const router = useRouter();
@@ -30,17 +28,27 @@ export default function FixturesEditorClient({ pendingMatches, completedMatches 
     setWinner(match.status === 'completed' ? match.winner : 'D');
     
     // Parse goal scorers if editing a completed match
-    if (match.status === 'completed' && match.goal_scorers) {
-      try {
-        setScorers(typeof match.goal_scorers === 'string' ? JSON.parse(match.goal_scorers) : match.goal_scorers);
-      } catch (e) {
-        setScorers([]);
+    if (match.status === 'completed') {
+      let parsed = [];
+      if (match.goal_scorers) {
+        try {
+          parsed = typeof match.goal_scorers === 'string' ? JSON.parse(match.goal_scorers) : match.goal_scorers;
+        } catch (e) {
+          parsed = [];
+        }
       }
+      const totalGoals = (match.home_score || 0) + (match.away_score || 0);
+      let normalized = [...parsed];
+      while (normalized.length < totalGoals) {
+        normalized.push({ player_name: '', minute: '' });
+      }
+      if (normalized.length > totalGoals) {
+        normalized = normalized.slice(0, totalGoals);
+      }
+      setScorers(normalized);
     } else {
       setScorers([]);
     }
-    setSearchTerm('');
-    setMinute('');
     
     // Fetch squads
     setLoadingSquads(true);
@@ -58,17 +66,17 @@ export default function FixturesEditorClient({ pendingMatches, completedMatches 
     setLoadingSquads(false);
   };
 
-  const filteredPlayers = [...squads.home, ...squads.away].filter(p => 
-    p?.name?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const addScorer = (player: any) => {
-    if (!minute) return alert('Enter minute first');
-    const isHome = squads.home.find(p => p.name === player.name);
-    const teamName = isHome ? selectedMatch.team_a : selectedMatch.team_b;
-    setScorers([...scorers, { player_name: player.name, team: teamName, minute: parseInt(String(minute)) }]);
-    setSearchTerm('');
-    setMinute('');
+  const updateScorer = (index: number, field: string, value: any) => {
+    setScorers(prev => {
+      const newScorers = [...prev];
+      newScorers[index] = { ...newScorers[index], [field]: value };
+      
+      if (field === 'player_name') {
+        const isHome = squads.home.find((p: any) => p.name === value);
+        newScorers[index].team = isHome ? selectedMatch.team_a : selectedMatch.team_b;
+      }
+      return newScorers;
+    });
   };
 
   const handleSave = async () => {
@@ -128,6 +136,10 @@ export default function FixturesEditorClient({ pendingMatches, completedMatches 
   // Determine winner automatically based on score inputs
   const handleScoreChange = (type: 'home' | 'away', val: string) => {
     const num = val === '' ? '' : parseInt(val);
+    
+    let newHome = type === 'home' ? num : homeScore;
+    let newAway = type === 'away' ? num : awayScore;
+    
     if (type === 'home') {
       setHomeScore(num);
       if (num !== '' && awayScore !== '') {
@@ -143,6 +155,20 @@ export default function FixturesEditorClient({ pendingMatches, completedMatches 
         else setWinner('D');
       }
     }
+
+    const homeVal = typeof newHome === 'number' ? newHome : 0;
+    const awayVal = typeof newAway === 'number' ? newAway : 0;
+    const targetGoals = homeVal + awayVal;
+    
+    setScorers(prev => {
+      if (prev.length === targetGoals) return prev;
+      if (prev.length > targetGoals) return prev.slice(0, targetGoals);
+      const newScorers = [...prev];
+      while (newScorers.length < targetGoals) {
+        newScorers.push({ player_name: '', minute: '' });
+      }
+      return newScorers;
+    });
   };
 
   return (
@@ -232,34 +258,38 @@ export default function FixturesEditorClient({ pendingMatches, completedMatches 
               </div>
             )}
 
-            <div className="border-t border-neutral-800 pt-4">
-              <h4 className="font-semibold mb-3">Goal Scorers</h4>
-              <ul className="mb-4 space-y-2">
-                {scorers.map((s, i) => (
-                  <li key={i} className="text-sm bg-neutral-800 px-3 py-2 rounded flex justify-between">
-                    <span>⚽ {s.player_name}</span>
-                    <span className="text-neutral-400">{s.minute}'</span>
-                  </li>
-                ))}
-              </ul>
-              
-              <div className="flex gap-2 mb-2">
-                <Input placeholder="Minute..." type="number" value={minute} onChange={e => setMinute(e.target.value === '' ? '' : parseInt(e.target.value))} className="w-24 bg-neutral-950 border-neutral-800" />
-                <Input placeholder="Search player..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="flex-1 bg-neutral-950 border-neutral-800" />
-              </div>
-              
-              {searchTerm && (
-                <div className="bg-neutral-950 border border-neutral-800 rounded max-h-40 overflow-y-auto">
-                  {filteredPlayers.slice(0, 5).map(p => (
-                    <div key={p.name} className="px-3 py-2 hover:bg-neutral-800 cursor-pointer text-sm flex justify-between" onClick={() => addScorer(p)}>
-                      <span>{p.name}</span>
-                      <span className="text-neutral-500">{p.position}</span>
+            {scorers.length > 0 && (
+              <div className="border-t border-neutral-800 pt-4">
+                <h4 className="font-semibold mb-3">Goal Scorers</h4>
+                <div className="space-y-3">
+                  {scorers.map((s, i) => (
+                    <div key={i} className="flex gap-2 items-center bg-neutral-950 p-2 rounded border border-neutral-800">
+                      <span className="text-neutral-500 text-sm w-6 text-center">{i + 1}.</span>
+                      <select 
+                        value={s.player_name || ''} 
+                        onChange={(e) => updateScorer(i, 'player_name', e.target.value)}
+                        className="flex-1 bg-neutral-900 border border-neutral-700 text-white p-2 rounded text-sm outline-none focus:border-blue-500"
+                      >
+                        <option value="">Select Player...</option>
+                        <optgroup label={selectedMatch.team_a}>
+                          {squads.home.map(p => <option key={p.name} value={p.name}>{p.name} ({p.position})</option>)}
+                        </optgroup>
+                        <optgroup label={selectedMatch.team_b}>
+                          {squads.away.map(p => <option key={p.name} value={p.name}>{p.name} ({p.position})</option>)}
+                        </optgroup>
+                      </select>
+                      <Input 
+                        placeholder="Min" 
+                        type="number" 
+                        value={s.minute || ''} 
+                        onChange={(e) => updateScorer(i, 'minute', e.target.value === '' ? '' : parseInt(e.target.value))} 
+                        className="w-20 bg-neutral-900 border-neutral-700 h-[38px]" 
+                      />
                     </div>
                   ))}
-                  {filteredPlayers.length === 0 && <div className="p-3 text-sm text-neutral-500">No players found</div>}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
             <div className="flex gap-4">
               <Button onClick={handleSave} className="flex-1 bg-blue-600 hover:bg-blue-700" disabled={saving || loadingSquads}>

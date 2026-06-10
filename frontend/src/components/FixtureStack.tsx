@@ -5,12 +5,17 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { getFlagGradientByName, getFlagUrl } from "@/lib/flags";
 
-const Countdown = ({ dateStr, timeStr }: { dateStr: string, timeStr?: string }) => {
+const Countdown = ({ dateStr, timeStr, timestamp }: { dateStr: string, timeStr?: string, timestamp?: number }) => {
   const [timeLeft, setTimeLeft] = useState("");
 
   useEffect(() => {
-    const targetStr = timeStr ? `${dateStr}T${timeStr}:00` : `${dateStr}T00:00:00`;
-    const target = new Date(targetStr).getTime();
+    let target: number;
+    if (timestamp) {
+      target = timestamp;
+    } else {
+      const targetStr = timeStr ? `${dateStr}T${timeStr}:00` : `${dateStr}T00:00:00`;
+      target = new Date(targetStr).getTime();
+    }
     
     const update = () => {
       const now = new Date().getTime();
@@ -116,7 +121,7 @@ export default function FixtureStack() {
                 <div className="flex flex-col md:flex-row justify-between items-center w-full absolute top-4 md:top-6 px-4 md:px-10 gap-2">
                    <div className="text-gray-400 font-bold uppercase tracking-widest text-[10px] md:text-xs flex flex-wrap items-center justify-center gap-2 md:gap-3">
                      {fixture.date} 
-                     {fixture.status === "LIVE" ? <LiveBadge /> : <Countdown dateStr={fixture.date} timeStr={fixture.time_local} />}
+                     {fixture.status === "LIVE" ? <LiveBadge /> : <Countdown dateStr={fixture.date} timeStr={fixture.time_local} timestamp={fixture.timestamp} />}
                    </div>
                    <div className="text-gray-400 font-bold uppercase tracking-widest text-[10px] md:text-xs text-center">{fixture.venue}</div>
                 </div>

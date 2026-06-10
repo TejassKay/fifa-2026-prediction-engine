@@ -552,6 +552,7 @@ def get_upcoming_fixtures():
         if status in ["UPCOMING", "LIVE"]:
             match_copy = match.copy()
             match_copy["status"] = status
+            match_copy["timestamp"] = int(match_dt.timestamp() * 1000)
             active_matches.append(match_copy)
             
     matches = active_matches[:5]
@@ -564,6 +565,7 @@ def get_upcoming_fixtures():
             "id": str(match.get("match_number", "1")),
             "date": match.get("date", "2026-06-11"),
             "time_local": match.get("time_local"),
+            "timestamp": match.get("timestamp"),
             "venue": match.get("venue", "Estadio Azteca"),
             "home_team": match["team_a"],
             "away_team": match["team_b"],
