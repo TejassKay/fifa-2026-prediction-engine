@@ -12,14 +12,16 @@ export default function Home() {
   const [topContenders, setTopContenders] = useState<any[]>([]);
   const [upsets, setUpsets] = useState<any[]>([]);
   const [finals, setFinals] = useState<any[]>([]);
+  const [prevOdds, setPrevOdds] = useState<any>({});
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchData = () => {
     Promise.all([
       fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/predictions/champion`).then(r => r.json()),
       fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/intelligence/upsets`).then(r => r.json()),
-      fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/intelligence/finals`).then(r => r.json())
-    ]).then(([champs, ups, fins]) => {
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/intelligence/finals`).then(r => r.json()),
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/stats/odds-history`).then(r => r.json())
+    ]).then(([champs, ups, fins, hist]) => {
       const sortedChamps = champs.sort((a: any, b: any) => b.champion_probability - a.champion_probability);
       setChampion(sortedChamps[0]);
       setTopContenders(sortedChamps.slice(0, 10));
@@ -27,11 +29,24 @@ export default function Home() {
       setUpsets(ups.slice(0, 2));
       setFinals(fins.slice(0, 1));
       
+      const histVals = Object.values(hist || {});
+      if (histVals.length >= 2) {
+        setPrevOdds(histVals[histVals.length - 2]);
+      } else if (histVals.length === 1) {
+        setPrevOdds(histVals[0]);
+      }
+      
       setLoading(false);
     }).catch(err => {
       console.error("Failed to load dashboard data", err);
       setLoading(false);
     });
+  };
+
+  useEffect(() => {
+    fetchData();
+    const interval = setInterval(fetchData, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   if (loading) {
@@ -219,7 +234,12 @@ export default function Home() {
             Live Top 10 Contenders
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            {topContenders.map((team, index) => (
+            {topContenders.map((team, index) => {
+              const currentProb = team.champion_probability * 100;
+              const prevProb = prevOdds[team.team] ? prevOdds[team.team] * 100 : currentProb;
+              const diff = currentProb - prevProb;
+              
+              return (
               <div 
                 key={team.team} 
                 className="glass-panel p-4 relative overflow-hidden group"
@@ -231,15 +251,22 @@ export default function Home() {
                     <img src={getFlagUrl(team.team)} alt={team.team} className="w-8 h-6 object-cover rounded shadow border border-white/10" />
                   </div>
                   <h4 className="text-lg font-black uppercase text-white mb-2">{team.team}</h4>
-                  <div className="mt-auto">
-                    <div className="text-2xl font-black text-white">
-                      {(team.champion_probability * 100).toFixed(1)}%
+                  <div className="mt-auto flex items-end gap-2">
+                    <div>
+                      <div className="text-2xl font-black text-white">
+                        {currentProb.toFixed(1)}%
+                      </div>
+                      <div className="text-[10px] text-gray-500 font-bold tracking-widest uppercase mt-1">Win Prob</div>
                     </div>
-                    <div className="text-[10px] text-gray-500 font-bold tracking-widest uppercase mt-1">Win Prob</div>
+                    {Math.abs(diff) > 0.05 && (
+                      <div className={`text-xs font-bold mb-5 ${diff > 0 ? 'text-emerald-400' : 'text-rose-500'}`}>
+                        {diff > 0 ? '+' : ''}{diff.toFixed(1)}%
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         </motion.section>
 

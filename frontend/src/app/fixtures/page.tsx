@@ -16,6 +16,12 @@ export default function FixturesPage() {
         </header>
         
         <FixtureStack />
+
+        <div className="mt-12 flex justify-center pb-8">
+          <a href="/schedule" className="inline-block bg-white/10 backdrop-blur-md border border-white/20 text-white font-bold uppercase tracking-wider px-8 py-4 rounded-full hover:bg-white/20 transition-all shadow-xl">
+            View full schedule
+          </a>
+        </div>
       </div>
     </div>
   );

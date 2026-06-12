@@ -2,17 +2,15 @@ import pandas as pd
 import database
 import random
 
-def resolve_standings():
+def get_standings():
     df_wc = pd.read_csv("Dataset/world-cup-2026-schedule.csv")
     completed = database.get_completed_matches()
     
-    # 1. Determine group structures
     groups = df_wc[df_wc['status'] == 'confirmed_group_fixture'].groupby('group')
     group_teams = {name: set(g['team_a']).union(set(g['team_b'])) for name, g in groups}
     
-    standings = {g: {t: {'pts':0, 'gd':0, 'gf':0, 'ga':0, 'played':0} for t in teams} for g, teams in group_teams.items()}
+    standings = {g: {t: {'pts':0, 'gd':0, 'gf':0, 'ga':0, 'played':0, 'w':0, 'd':0, 'l':0} for t in teams} for g, teams in group_teams.items()}
     
-    # 2. Add completed match results
     for m in completed:
         if m['stage'] == 'Group Stage':
             ht, at = m['home_team'], m['away_team']
@@ -37,11 +35,25 @@ def resolve_standings():
                 
                 if hs > as_:
                     standings[g][ht]['pts'] += 3
+                    standings[g][ht]['w'] += 1
+                    standings[g][at]['l'] += 1
                 elif as_ > hs:
                     standings[g][at]['pts'] += 3
+                    standings[g][at]['w'] += 1
+                    standings[g][ht]['l'] += 1
                 else:
                     standings[g][ht]['pts'] += 1
                     standings[g][at]['pts'] += 1
+                    standings[g][ht]['d'] += 1
+                    standings[g][at]['d'] += 1
+                    
+    return standings, group_teams
+
+def resolve_standings():
+    df_wc = pd.read_csv("Dataset/world-cup-2026-schedule.csv")
+    completed = database.get_completed_matches()
+    
+    standings, group_teams = get_standings()
                     
     # 3. Resolve Placements
     resolved = {}
@@ -118,6 +130,15 @@ def resolve_standings():
                 m_dict['winner'] = m_dict['team_b']
             else:
                 m_dict['winner'] = "Draw"
+            
+            # Add goal_scorers
+            gs = c_match.get('goal_scorers')
+            if gs:
+                import json
+                try:
+                    m_dict['goal_scorers'] = json.loads(gs)
+                except Exception:
+                    m_dict['goal_scorers'] = []
             
         live_schedule.append(m_dict)
         

@@ -77,7 +77,8 @@ export default function OddsHistoryPage() {
                   contentStyle={{ backgroundColor: '#171717', borderColor: '#262626', color: '#fff' }}
                   itemStyle={{ fontWeight: 'bold' }}
                   formatter={(value: any) => [`${(Number(value) * 100).toFixed(1)}%`]}
-                  labelStyle={{ color: '#a3a3a3', marginBottom: '8px' }}
+                  labelStyle={{ display: 'none' }}
+                  itemSorter={(item) => -(item.value as number)}
                 />
                 <Legend iconType="circle" />
                 {teams.map((team, i) => (

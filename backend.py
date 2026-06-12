@@ -479,6 +479,34 @@ def get_bracket():
         from fastapi import Response
         return Response(content=traceback.format_exc(), media_type="text/plain", status_code=500)
 
+@app.get("/api/standings")
+def api_get_standings():
+    import knockout_resolver
+    standings, _ = knockout_resolver.get_standings()
+    # Format the dictionary into an array of objects for easier frontend consumption
+    result = []
+    for g, teams in standings.items():
+        team_list = []
+        for team_name, stats in teams.items():
+            team_list.append({
+                "team": team_name,
+                "played": stats["played"],
+                "w": stats["w"],
+                "d": stats["d"],
+                "l": stats["l"],
+                "gf": stats["gf"],
+                "ga": stats["ga"],
+                "gd": stats["gd"],
+                "pts": stats["pts"]
+            })
+        # Sort by points, then gd, then gf
+        team_list.sort(key=lambda x: (x["pts"], x["gd"], x["gf"]), reverse=True)
+        result.append({"group": g, "teams": team_list})
+    
+    # Sort groups A-L
+    result.sort(key=lambda x: x["group"])
+    return result
+
 @app.get("/api/intelligence/storylines")
 def get_storylines():
     champs = DATA.get("champions", [])
@@ -774,6 +802,29 @@ def record_match_result(req: MatchRecordRequest, background_tasks: BackgroundTas
         
     m = match_row.iloc[0]
     
+    # Generate and save the prediction before recording the match
+    req_pred = MatchRequest(home_team=m['team_a'], away_team=m['team_b'])
+    pred_data = predict_match(req_pred)
+    top_score = pred_data["top_scorelines"][0]["score"].split("-")
+    
+    probs = pred_data["probabilities"]
+    if probs["home_win"] > probs["away_win"] and probs["home_win"] > probs["draw"]:
+        pred_winner = "H"
+    elif probs["away_win"] > probs["home_win"] and probs["away_win"] > probs["draw"]:
+        pred_winner = "A"
+    else:
+        pred_winner = "D"
+        
+    database.save_prediction(
+        str(req.match_id),
+        int(top_score[0]),
+        int(top_score[1]),
+        pred_winner,
+        probs["home_win"],
+        probs["draw"],
+        probs["away_win"]
+    )
+
     database.record_match(
         match_id=str(req.match_id),
         home_team=m['team_a'],
@@ -990,6 +1041,40 @@ def delete_match_result(match_id: str, background_tasks: BackgroundTasks, payloa
     
     return {"status": "success", "message": f"Match {match_id} deleted and simulation restarted"}
 
+@app.get("/api/schedule")
+def get_full_schedule():
+    schedule = DATA.get("schedule", [])
+    if not schedule:
+        return []
+        
+    completed_db = {str(m['match_id']): m for m in database.get_completed_matches()}
+    
+    import math
+    import json
+    cleaned_schedule = []
+    for m in schedule:
+        c = {}
+        for k, v in m.items():
+            if isinstance(v, float) and math.isnan(v):
+                c[k] = ""
+            else:
+                c[k] = v
+                
+        m_id = str(c.get("match_number"))
+        if m_id in completed_db:
+            db_m = completed_db[m_id]
+            c["home_score"] = db_m["home_score"]
+            c["away_score"] = db_m["away_score"]
+            c["status"] = "completed"
+            try:
+                c["goal_scorers"] = json.loads(db_m["goal_scorers"]) if db_m["goal_scorers"] else []
+            except Exception:
+                c["goal_scorers"] = []
+                
+        cleaned_schedule.append(c)
+        
+    return cleaned_schedule
+
 @app.get("/api/fixtures/pending")
 def get_pending_fixtures():
     schedule = DATA.get("schedule", [])
@@ -1127,8 +1212,13 @@ def get_timeline():
             is_winner_correct = match['winner'] == pred['pred_winner']
             is_exact_score = match['home_score'] == pred['pred_home_score'] and match['away_score'] == pred['pred_away_score']
             
+            actual_gd = match['home_score'] - match['away_score']
+            pred_gd = pred['pred_home_score'] - pred['pred_away_score']
+            is_gd_correct = actual_gd == pred_gd
+            
             event["winner_correct"] = is_winner_correct
             event["exact_score_correct"] = is_exact_score
+            event["gd_correct"] = is_gd_correct
             
             pred_probs = {
                 "H": pred.get("pred_prob_home", 0),
@@ -1141,6 +1231,8 @@ def get_timeline():
                 event["insight"] = "Massive Upset"
             elif is_exact_score:
                 event["insight"] = "Perfect Prediction"
+            elif is_winner_correct and is_gd_correct:
+                event["insight"] = "Winner & Exact Margin"
             elif is_winner_correct:
                 event["insight"] = "Correct Winner"
             else:

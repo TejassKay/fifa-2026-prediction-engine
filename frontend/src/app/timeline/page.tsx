@@ -76,6 +76,7 @@ export default function TimelinePage() {
                   <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded border
                     ${ev.insight === "Massive Upset" ? "border-rose-500 text-rose-500 bg-rose-500/10" : 
                       ev.insight === "Perfect Prediction" ? "border-emerald-500 text-emerald-500 bg-emerald-500/10" :
+                      ev.insight === "Winner & Exact Margin" ? "border-teal-500 text-teal-500 bg-teal-500/10" :
                       ev.insight === "Correct Winner" ? "border-blue-500 text-blue-500 bg-blue-500/10" :
                       "border-neutral-500 text-neutral-500 bg-neutral-500/10"
                     }`}>
@@ -110,6 +111,10 @@ export default function TimelinePage() {
                       <div className="flex items-center gap-1 text-xs font-bold uppercase">
                         {ev.winner_correct ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <XCircle className="w-4 h-4 text-rose-500" />}
                         <span className={ev.winner_correct ? "text-emerald-500" : "text-rose-500"}>Winner</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-xs font-bold uppercase">
+                        {ev.gd_correct ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <XCircle className="w-4 h-4 text-rose-500" />}
+                        <span className={ev.gd_correct ? "text-emerald-500" : "text-rose-500"}>GD</span>
                       </div>
                       <div className="flex items-center gap-1 text-xs font-bold uppercase">
                         {ev.exact_score_correct ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <XCircle className="w-4 h-4 text-rose-500" />}

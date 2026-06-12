@@ -5,12 +5,31 @@ import { getFlagUrl } from "@/lib/flags";
 import { Flame, Medal, Target } from "lucide-react";
 
 const PlayerAvatar = ({ name, team }: { name: string, team: string }) => {
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/players/${encodeURIComponent(name)}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d && !d.error && d.image_url) {
+          setImageUrl(d.image_url);
+        }
+      })
+      .catch(console.error);
+  }, [name]);
+
   const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   return (
-    <div className="relative">
+    <div className="relative shrink-0">
       <div className="w-12 h-12 rounded-full bg-gradient-to-br from-neutral-700 to-neutral-900 border-2 border-white/10 flex items-center justify-center font-black text-lg shadow-xl relative overflow-hidden">
-        <div className="absolute inset-0 bg-white/5 backdrop-blur-sm"></div>
-        <span className="relative z-10 text-white drop-shadow-md">{initials}</span>
+        {imageUrl ? (
+          <img src={imageUrl} alt={name} className="w-full h-full object-cover object-top" />
+        ) : (
+          <>
+            <div className="absolute inset-0 bg-white/5 backdrop-blur-sm"></div>
+            <span className="relative z-10 text-white drop-shadow-md">{initials}</span>
+          </>
+        )}
       </div>
       <img src={getFlagUrl(team)} className="absolute -bottom-1 -right-1 w-6 h-4 object-cover rounded shadow border border-neutral-900" title={team} />
     </div>
