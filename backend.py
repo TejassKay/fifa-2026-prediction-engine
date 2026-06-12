@@ -1041,6 +1041,12 @@ def delete_match_result(match_id: str, background_tasks: BackgroundTasks, payloa
     
     return {"status": "success", "message": f"Match {match_id} deleted and simulation restarted"}
 
+@app.post("/api/admin/trigger-simulation")
+def trigger_simulation(background_tasks: BackgroundTasks, payload: dict = Depends(verify_jwt)):
+    from monte_carlo_simulator import main as run_simulator
+    background_tasks.add_task(run_simulator)
+    return {"status": "success", "message": "Simulation triggered manually."}
+
 @app.get("/api/schedule")
 def get_full_schedule():
     schedule = DATA.get("schedule", [])

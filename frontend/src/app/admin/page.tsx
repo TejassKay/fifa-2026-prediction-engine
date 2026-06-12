@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Activity, CheckCircle, Clock } from 'lucide-react';
+import SimulatorButton from './SimulatorButton';
 
 export default async function AdminDashboard() {
   // We can fetch accuracy and db status here
@@ -17,7 +18,9 @@ export default async function AdminDashboard() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-3xl font-bold tracking-tight">System Overview</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-3xl font-bold tracking-tight">System Overview</h2>
+      </div>
       
       <div className="grid gap-6 md:grid-cols-3">
         <Card className="bg-neutral-900 border-neutral-800 text-white">
@@ -61,6 +64,8 @@ export default async function AdminDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <SimulatorButton />
     </div>
   );
 }
