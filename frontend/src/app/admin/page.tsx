@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Activity, CheckCircle, Clock } from 'lucide-react';
 import SimulatorButton from './SimulatorButton';
+import SeedPredictionsButton from './SeedPredictionsButton';
 
 export default async function AdminDashboard() {
   // We can fetch accuracy and db status here
@@ -66,6 +67,7 @@ export default async function AdminDashboard() {
       </div>
 
       <SimulatorButton />
+      <SeedPredictionsButton />
     </div>
   );
 }
