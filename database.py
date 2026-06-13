@@ -172,11 +172,25 @@ def save_prediction(match_id, pred_home_score, pred_away_score, pred_winner, pro
             pred_prob_away=excluded.pred_prob_away
     ''', (str(match_id), pred_home_score, pred_away_score, pred_winner, prob_home, prob_draw, prob_away))
 
+import time
+_query_cache = {}
+
+def _cached_execute_read(query, ttl=60):
+    now = time.time()
+    if query in _query_cache:
+        cached_time, cached_data = _query_cache[query]
+        if now - cached_time < ttl:
+            return cached_data
+            
+    data = execute_read(query)
+    _query_cache[query] = (now, data)
+    return data
+
 def get_completed_matches():
-    return execute_read("SELECT * FROM matches WHERE status='completed'")
+    return _cached_execute_read("SELECT * FROM matches WHERE status='completed'", ttl=30)
 
 def get_predictions():
-    rows = execute_read("SELECT * FROM predictions")
+    rows = _cached_execute_read("SELECT * FROM predictions", ttl=30)
     return {str(r['match_id']): r for r in rows}
 
 def delete_match(match_id):
@@ -202,7 +216,7 @@ def save_odds_snapshot(match_id, odds_dict):
             c.close()
 
 def get_odds_history():
-    rows = execute_read("SELECT * FROM odds_history")
+    rows = _cached_execute_read("SELECT * FROM odds_history", ttl=60)
     history = {}
     for r in rows:
         m_id = str(r['match_id'])
