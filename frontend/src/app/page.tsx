@@ -236,8 +236,7 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             {topContenders.map((team, index) => {
               const currentProb = team.champion_probability * 100;
-              const prevProb = prevOdds[team.team] ? prevOdds[team.team] * 100 : currentProb;
-              const diff = currentProb - prevProb;
+              const diff = (team.delta || 0) * 100;
               
               return (
               <div 
