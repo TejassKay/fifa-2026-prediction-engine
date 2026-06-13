@@ -500,9 +500,9 @@ def predict_match(req: MatchRequest):
             "away": float(lam_a_v2)
         },
         "probabilities": {
-            "home_win": round(prob_h, 4),
-            "draw": round(prob_d, 4),
-            "away_win": round(prob_a, 4)
+            "home_win": float(round(prob_h, 4)),
+            "draw": float(round(prob_d, 4)),
+            "away_win": float(round(prob_a, 4))
         },
         "top_scorelines": scorelines
     }
