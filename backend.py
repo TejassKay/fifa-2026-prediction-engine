@@ -276,7 +276,22 @@ def get_team_squad(team_id: str):
     squads = DATA.get("squads", [])
     players_db = DATA.get("players", {})
     
-    team = next((s for s in squads if s["team"].lower() == team_id.lower()), None)
+    alias_map = {
+        "united states": "usa",
+        "iran": "ir iran",
+        "south korea": "korea republic",
+        "ivory coast": "côte d'ivoire",
+        "turkey": "türkiye",
+        "cape verde": "cabo verde",
+        "dr congo": "congo dr",
+        "czech republic": "czechia"
+    }
+    
+    search_term = team_id.lower()
+    if search_term in alias_map:
+        search_term = alias_map[search_term]
+        
+    team = next((s for s in squads if s["team"].lower() == search_term or s["team"].lower() == team_id.lower()), None)
     if team:
         stats = get_team_stats(team["team"])
         
