@@ -489,12 +489,24 @@ def predict_match(req: MatchRequest):
                 
     scorelines = sorted(scorelines, key=lambda x: x["prob"], reverse=True)[:5]
     
+    top_score = scorelines[0]["score"].split("-")
+    
+    if prob_h > prob_a and prob_h > prob_d:
+        pred_winner = "H"
+    elif prob_a > prob_h and prob_a > prob_d:
+        pred_winner = "A"
+    else:
+        pred_winner = "D"
+        
     # Store the Shadow Prediction asynchronously (or lazily in memory for the admin view)
     # We will let the match reporting endpoint handle writing to shadow_predictions table when actual scores arrive.
     
     return {
         "home_team": home,
         "away_team": away,
+        "pred_home_score": int(top_score[0]),
+        "pred_away_score": int(top_score[1]),
+        "pred_winner": pred_winner,
         "expected_goals": {
             "home": float(lam_h_v2),
             "away": float(lam_a_v2)
