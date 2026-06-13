@@ -11,7 +11,12 @@ def init_pool(db_url):
     global _pg_pool
     if _pg_pool is None:
         import psycopg2.pool
-        _pg_pool = psycopg2.pool.ThreadedConnectionPool(minconn=1, maxconn=10, dsn=db_url)
+        
+        # If using Supabase Pooler, force Transaction Mode (port 6543) instead of Session Mode (port 5432)
+        if "pooler.supabase.com" in db_url and ":5432" in db_url:
+            db_url = db_url.replace(":5432", ":6543")
+            
+        _pg_pool = psycopg2.pool.ThreadedConnectionPool(minconn=1, maxconn=3, dsn=db_url)
 
 @contextmanager
 def get_connection():
