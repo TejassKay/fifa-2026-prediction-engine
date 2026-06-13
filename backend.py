@@ -59,6 +59,7 @@ class GoalScorer(BaseModel):
     minute: int
     team: Optional[str] = None
     is_own_goal: Optional[bool] = False
+    is_penalty: Optional[bool] = False
 
 class MatchRecordRequest(BaseModel):
     match_id: str

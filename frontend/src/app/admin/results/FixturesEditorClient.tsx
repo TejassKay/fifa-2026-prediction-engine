@@ -239,12 +239,12 @@ export default function FixturesEditorClient({ pendingMatches, completedMatches 
             
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs text-neutral-400 uppercase">{selectedMatch.team_a} Score</label>
-                <Input type="number" value={homeScore} onChange={e => handleScoreChange('home', e.target.value)} className="bg-neutral-950 mt-1 border-neutral-800 text-lg" />
+                <label className="text-xs text-neutral-400 uppercase font-bold">{selectedMatch.team_a} Score</label>
+                <Input type="number" value={homeScore} onChange={e => handleScoreChange('home', e.target.value)} className="bg-neutral-950 mt-2 border-neutral-700 text-4xl h-20 text-center font-black" />
               </div>
               <div>
-                <label className="text-xs text-neutral-400 uppercase">{selectedMatch.team_b} Score</label>
-                <Input type="number" value={awayScore} onChange={e => handleScoreChange('away', e.target.value)} className="bg-neutral-950 mt-1 border-neutral-800 text-lg" />
+                <label className="text-xs text-neutral-400 uppercase font-bold">{selectedMatch.team_b} Score</label>
+                <Input type="number" value={awayScore} onChange={e => handleScoreChange('away', e.target.value)} className="bg-neutral-950 mt-2 border-neutral-700 text-4xl h-20 text-center font-black" />
               </div>
             </div>
             
@@ -261,29 +261,23 @@ export default function FixturesEditorClient({ pendingMatches, completedMatches 
             {scorers.length > 0 && (
               <div className="border-t border-neutral-800 pt-4">
                 <h4 className="font-semibold mb-3">Goal Scorers</h4>
-                <div className="space-y-3">
+                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
                   {scorers.map((s, i) => (
                     <div key={i} className="flex gap-2 items-center bg-neutral-950 p-2 rounded border border-neutral-800">
                       <span className="text-neutral-500 text-sm w-6 text-center">{i + 1}.</span>
-                      <select 
+                      <input 
+                        list={`players-${selectedMatch.match_number}`}
                         value={s.player_name || ''} 
                         onChange={(e) => updateScorer(i, 'player_name', e.target.value)}
+                        placeholder="Type player name..."
                         className="flex-1 bg-neutral-900 border border-neutral-700 text-white p-2 rounded text-sm outline-none focus:border-blue-500"
-                      >
-                        <option value="">Select Player...</option>
-                        <optgroup label={selectedMatch.team_a}>
-                          {squads.home.map(p => <option key={p.name} value={p.name}>{p.name} ({p.position})</option>)}
-                        </optgroup>
-                        <optgroup label={selectedMatch.team_b}>
-                          {squads.away.map(p => <option key={p.name} value={p.name}>{p.name} ({p.position})</option>)}
-                        </optgroup>
-                      </select>
+                      />
                       <Input 
                         placeholder="Min" 
                         type="number" 
                         value={s.minute || ''} 
                         onChange={(e) => updateScorer(i, 'minute', e.target.value === '' ? '' : parseInt(e.target.value))} 
-                        className="w-20 bg-neutral-900 border-neutral-700 h-[38px]" 
+                        className="w-16 bg-neutral-900 border-neutral-700 h-[38px]" 
                       />
                       <label className="flex items-center gap-1 text-xs text-neutral-400 cursor-pointer">
                         <input 
@@ -294,8 +288,21 @@ export default function FixturesEditorClient({ pendingMatches, completedMatches 
                         />
                         OG
                       </label>
+                      <label className="flex items-center gap-1 text-xs text-neutral-400 cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={s.is_penalty || false} 
+                          onChange={(e) => updateScorer(i, 'is_penalty', e.target.checked)}
+                          className="w-4 h-4 rounded border-neutral-700 bg-neutral-900"
+                        />
+                        PEN
+                      </label>
                     </div>
                   ))}
+                  <datalist id={`players-${selectedMatch.match_number}`}>
+                    {squads.home.map(p => <option key={`h-${p.name}`} value={p.name}>{p.name} ({p.position})</option>)}
+                    {squads.away.map(p => <option key={`a-${p.name}`} value={p.name}>{p.name} ({p.position})</option>)}
+                  </datalist>
                 </div>
               </div>
             )}
