@@ -18,8 +18,16 @@ def init_pool(db_url):
             
         _pg_pool = psycopg2.pool.ThreadedConnectionPool(minconn=1, maxconn=3, dsn=db_url)
 
+import logging
+logger = logging.getLogger("db_pool")
+logger.setLevel(logging.INFO)
+
+_checkout_count = 0
+_return_count = 0
+
 @contextmanager
 def get_connection():
+    global _checkout_count, _return_count
     db_url = os.environ.get("DATABASE_URL")
     if db_url and (db_url.startswith("postgres://") or db_url.startswith("postgresql://")):
         init_pool(db_url)
@@ -28,7 +36,7 @@ def get_connection():
         from psycopg2.pool import PoolError
         
         conn = None
-        for _ in range(15):
+        for _ in range(50):
             try:
                 conn = _pg_pool.getconn()
                 break
@@ -36,12 +44,26 @@ def get_connection():
                 time.sleep(0.1)
                 
         if not conn:
+            logger.error(f"Pool exhausted after 5s wait. Active: {len(getattr(_pg_pool, '_used', []))}")
             conn = _pg_pool.getconn()
+            
+        _checkout_count += 1
+        active = len(getattr(_pg_pool, '_used', []))
+        logger.info(f"Pool Checkout | Checked out total: {_checkout_count} | Returned total: {_return_count} | Active in pool: {active}")
             
         try:
             yield conn, "postgres"
         finally:
+            try:
+                # Always rollback to ensure transaction state is clean before returning to pool
+                conn.rollback()
+            except Exception as e:
+                logger.warning(f"Error rolling back connection: {e}")
+                
             _pg_pool.putconn(conn)
+            _return_count += 1
+            active_after = len(getattr(_pg_pool, '_used', []))
+            logger.info(f"Pool Return | Checked out total: {_checkout_count} | Returned total: {_return_count} | Active in pool: {active_after}")
     else:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
