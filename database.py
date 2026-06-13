@@ -64,6 +64,21 @@ def init_db():
     ''')
     
     execute_write('''
+        CREATE TABLE IF NOT EXISTS shadow_predictions (
+            match_id TEXT PRIMARY KEY,
+            home_team TEXT,
+            away_team TEXT,
+            v1_home_exp REAL,
+            v1_away_exp REAL,
+            v2_home_exp REAL,
+            v2_away_exp REAL,
+            actual_home_score INTEGER,
+            actual_away_score INTEGER,
+            match_date TEXT
+        )
+    ''')
+    
+    execute_write('''
         CREATE TABLE IF NOT EXISTS predictions (
             match_id TEXT PRIMARY KEY,
             pred_home_score INTEGER,

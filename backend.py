@@ -233,8 +233,11 @@ def load_data():
     try:
         print("Rebuilding lambda lookups...")
         df_pred, _ = load_and_prepare_lookup()
-        lambda_lookup, shootout_lookup = encode_and_predict(df_pred)
+        lambda_lookup, v2_lambda_lookup, shootout_lookup = encode_and_predict(df_pred)
+        
         DATA["lambda_lookup"] = lambda_lookup
+        DATA["v2_lambda_lookup"] = v2_lambda_lookup
+        DATA["shootout_lookup"] = shootout_lookup
         DATA["df_pred"] = df_pred.set_index(["home_team", "away_team"])
     except Exception as e:
         print(f"Error rebuilding model lookups: {e}")
@@ -450,21 +453,32 @@ def predict_match(req: MatchRequest):
     home = req.home_team
     away = req.away_team
     
-    # Check if we have precomputed lambda
+    # Check V1 Lambda
     llkp = DATA.get("lambda_lookup", {})
     if (home, away) in llkp:
-        lam_h, lam_a = llkp[(home, away)]
+        lam_h_v1, lam_a_v1 = llkp[(home, away)]
     elif (away, home) in llkp:
-        lam_a, lam_h = llkp[(away, home)]
+        lam_a_v1, lam_h_v1 = llkp[(away, home)]
     else:
-        lam_h, lam_a = 1.2, 1.2
+        lam_h_v1, lam_a_v1 = 1.2, 1.2
         
+    # Check V2 Lambda
+    v2_llkp = DATA.get("v2_lambda_lookup", {})
+    if (home, away) in v2_llkp:
+        lam_h_v2, lam_a_v2 = v2_llkp[(home, away)]
+    elif (away, home) in v2_llkp:
+        lam_a_v2, lam_h_v2 = v2_llkp[(away, home)]
+    else:
+        # V2 fallback to V1
+        lam_h_v2, lam_a_v2 = lam_h_v1, lam_a_v1
+        
+    # We use V2 (CatBoost) as the primary engine for the frontend response
     prob_h, prob_d, prob_a = 0.0, 0.0, 0.0
     scorelines = []
     
     for h in range(8):
         for a in range(8):
-            p = poisson.pmf(h, lam_h) * poisson.pmf(a, lam_a)
+            p = poisson.pmf(h, lam_h_v2) * poisson.pmf(a, lam_a_v2)
             scorelines.append({"score": f"{h}-{a}", "prob": float(p)})
             if h > a:
                 prob_h += p
@@ -475,17 +489,20 @@ def predict_match(req: MatchRequest):
                 
     scorelines = sorted(scorelines, key=lambda x: x["prob"], reverse=True)[:5]
     
+    # Store the Shadow Prediction asynchronously (or lazily in memory for the admin view)
+    # We will let the match reporting endpoint handle writing to shadow_predictions table when actual scores arrive.
+    
     return {
         "home_team": home,
         "away_team": away,
-        "expected_goals": {
-            "home": float(lam_h),
-            "away": float(lam_a)
+        "lambda": {
+            "home": float(lam_h_v2),
+            "away": float(lam_a_v2)
         },
         "probabilities": {
-            "home_win": float(prob_h),
-            "draw": float(prob_d),
-            "away_win": float(prob_a)
+            "home_win": round(prob_h, 4),
+            "draw": round(prob_d, 4),
+            "away_win": round(prob_a, 4)
         },
         "top_scorelines": scorelines
     }
@@ -854,6 +871,29 @@ def record_match_result(req: MatchRecordRequest, background_tasks: BackgroundTas
         probs["draw"],
         probs["away_win"]
     )
+    
+    # Dual Engine Shadow Prediction Logging
+    try:
+        ht = m['team_a']
+        at = m['team_b']
+        llkp = DATA.get("lambda_lookup", {})
+        v2_llkp = DATA.get("v2_lambda_lookup", {})
+        
+        v1_h, v1_a = 1.2, 1.2
+        if (ht, at) in llkp: v1_h, v1_a = llkp[(ht, at)]
+        elif (at, ht) in llkp: v1_a, v1_h = llkp[(at, ht)]
+        
+        v2_h, v2_a = v1_h, v1_a
+        if (ht, at) in v2_llkp: v2_h, v2_a = v2_llkp[(ht, at)]
+        elif (at, ht) in v2_llkp: v2_a, v2_h = v2_llkp[(at, ht)]
+        
+        database.execute_write('''
+            INSERT OR REPLACE INTO shadow_predictions
+            (match_id, home_team, away_team, v1_home_exp, v1_away_exp, v2_home_exp, v2_away_exp, actual_home_score, actual_away_score, match_date)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (str(req.match_id), ht, at, v1_h, v1_a, v2_h, v2_a, req.home_score, req.away_score, m.get('date', '')))
+    except Exception as e:
+        print(f"Shadow logging failed: {e}")
 
     database.record_match(
         match_id=str(req.match_id),
@@ -1310,6 +1350,60 @@ def api_get_odds_history():
             })
             
     return formatted
+
+@app.get("/api/shadow_stats")
+def shadow_stats(payload: dict = Depends(verify_jwt)):
+    # This endpoint aggregates Log Loss and Exact Accuracy for V1 vs V2
+    import numpy as np
+    from scipy.stats import poisson
+    
+    rows = database.execute_read("SELECT * FROM shadow_predictions")
+    if not rows:
+        return {"status": "no_data"}
+        
+    v1_ll, v2_ll = 0, 0
+    v1_exact, v2_exact = 0, 0
+    
+    for r in rows:
+        h_true = r["actual_home_score"]
+        a_true = r["actual_away_score"]
+        
+        def evaluate_lam(lam_h, lam_a):
+            p_matrix = np.zeros((10, 10))
+            for x in range(10):
+                for y in range(10):
+                    p_matrix[x, y] = poisson.pmf(x, lam_h) * poisson.pmf(y, lam_a)
+            p_matrix /= p_matrix.sum()
+            
+            pred_h, pred_a = np.unravel_index(np.argmax(p_matrix), p_matrix.shape)
+            exact = 1 if (pred_h == h_true and pred_a == a_true) else 0
+            
+            true_out = 0 if h_true > a_true else (1 if h_true == a_true else 2)
+            probs = [np.tril(p_matrix, -1).sum(), np.trace(p_matrix), np.triu(p_matrix, 1).sum()]
+            p_true = max(1e-15, min(1-1e-15, probs[true_out]))
+            return exact, -np.log(p_true)
+            
+        e1, l1 = evaluate_lam(r["v1_home_exp"], r["v1_away_exp"])
+        e2, l2 = evaluate_lam(r["v2_home_exp"], r["v2_away_exp"])
+        
+        v1_exact += e1
+        v1_ll += l1
+        v2_exact += e2
+        v2_ll += l2
+        
+    N = len(rows)
+    return {
+        "status": "success",
+        "matches_tracked": N,
+        "v1_xgboost": {
+            "log_loss": round(v1_ll / N, 4),
+            "exact_accuracy": round((v1_exact / N) * 100, 2)
+        },
+        "v2_catboost": {
+            "log_loss": round(v2_ll / N, 4),
+            "exact_accuracy": round((v2_exact / N) * 100, 2)
+        }
+    }
 
 if __name__ == "__main__":
     import uvicorn
