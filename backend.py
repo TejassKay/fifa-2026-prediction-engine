@@ -495,7 +495,7 @@ def predict_match(req: MatchRequest):
     return {
         "home_team": home,
         "away_team": away,
-        "lambda": {
+        "expected_goals": {
             "home": float(lam_h_v2),
             "away": float(lam_a_v2)
         },
