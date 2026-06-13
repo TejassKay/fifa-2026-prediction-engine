@@ -44,12 +44,14 @@ def get_connection():
                 time.sleep(0.1)
                 
         if not conn:
-            logger.error(f"Pool exhausted after 5s wait. Active: {len(getattr(_pg_pool, '_used', []))}")
+            active = len(getattr(_pg_pool, '_used', []))
+            logger.error(f"Pool exhausted after 5s wait. Active: {active}")
             conn = _pg_pool.getconn()
             
+        conn_id = id(conn)
         _checkout_count += 1
         active = len(getattr(_pg_pool, '_used', []))
-        logger.info(f"Pool Checkout | Checked out total: {_checkout_count} | Returned total: {_return_count} | Active in pool: {active}")
+        logger.info(f"CHECKOUT | ConnID: {conn_id} | Total Checkouts: {_checkout_count} | Total Returns: {_return_count} | Active: {active}")
             
         try:
             yield conn, "postgres"
@@ -58,12 +60,12 @@ def get_connection():
                 # Always rollback to ensure transaction state is clean before returning to pool
                 conn.rollback()
             except Exception as e:
-                logger.warning(f"Error rolling back connection: {e}")
+                logger.warning(f"Error rolling back connection {conn_id}: {e}")
                 
             _pg_pool.putconn(conn)
             _return_count += 1
             active_after = len(getattr(_pg_pool, '_used', []))
-            logger.info(f"Pool Return | Checked out total: {_checkout_count} | Returned total: {_return_count} | Active in pool: {active_after}")
+            logger.info(f"RETURN | ConnID: {conn_id} | Total Checkouts: {_checkout_count} | Total Returns: {_return_count} | Active: {active_after}")
     else:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
