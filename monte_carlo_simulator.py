@@ -192,12 +192,9 @@ def load_and_prepare_lookup():
     return df_pred, df_wc_matches
 
 def encode_and_predict(df_pred):
-    print("Encoding and predicting V1 (XGBoost)...")
+    print("Encoding and predicting...")
     df_train = pd.read_csv("final_training_dataset.csv")
     cat_cols = ['home_team', 'away_team', 'tournament']
-    import category_encoders as ce
-    import joblib
-    
     encoder = ce.CountEncoder(cols=cat_cols, handle_unknown='value')
     encoder.fit(df_train[cat_cols])
     
@@ -208,89 +205,22 @@ def encode_and_predict(df_pred):
         
     exclude = ['match_id', 'date', 'home_score', 'away_score', 'result', 'goal_diff', 'neutral']
     train_features_base = [c for c in df_train.columns if c not in exclude]
-    features_v1 = train_features_base + ['neutral']
+    features = train_features_base + ['neutral']
     
-    X_pred_v1 = df_prepared[features_v1].astype(float)
+    X_pred = df_prepared[features].astype(float)
     
     model_h = joblib.load("tuned_best_model_home.joblib")
     model_a = joblib.load("tuned_best_model_away.joblib")
     
-    lambda_h_v1 = model_h.predict(X_pred_v1)
-    lambda_a_v1 = model_a.predict(X_pred_v1)
+    lambda_h = model_h.predict(X_pred)
+    lambda_a = model_a.predict(X_pred)
     
-    # Precompute V1 lookup dictionary
+    # Precompute lookup dictionary
     lambda_lookup = {}
     for i in range(len(df_pred)):
         ht = df_pred.iloc[i]['home_team']
         at = df_pred.iloc[i]['away_team']
-        lambda_lookup[(ht, at)] = (max(lambda_h_v1[i], 0.01), max(lambda_a_v1[i], 0.01))
-
-    # --- V2 CATBOOST PREDICTION ---
-    print("Encoding and predicting V2 (CatBoost + Positional Intel)...")
-    from catboost import CatBoostRegressor
-    
-    # Generate live positional intelligence for the 48 teams
-    try:
-        df_p = pd.read_csv("Dataset/players.csv", usecols=["player_id", "country_of_citizenship", "position"])
-        df_v = pd.read_csv("Dataset/player_valuations.csv", usecols=["player_id", "date", "market_value_in_eur"])
-        TEAM_NAME_MAP = {"Cape Verde": "Cabo Verde", "DR Congo": "Congo DR", "USA": "United States"}
-        df_p["country_of_citizenship"] = df_p["country_of_citizenship"].map(lambda x: TEAM_NAME_MAP.get(x, x))
-        
-        # Get latest valuations
-        df_v["date"] = pd.to_datetime(df_v["date"], format='mixed')
-        latest_v = df_v.sort_values("date").drop_duplicates("player_id", keep="last")
-        pool = latest_v.merge(df_p, on="player_id", how="inner").fillna(0)
-        
-        rosters = pool.sort_values(["country_of_citizenship", "market_value_in_eur"], ascending=[True, False])
-        rosters = rosters.groupby("country_of_citizenship").head(23)
-        
-        squad_intel = []
-        for team, roster in rosters.groupby("country_of_citizenship"):
-            gk = roster[roster["position"] == "Goalkeeper"]
-            defenders = roster[roster["position"] == "Defender"]
-            mid = roster[roster["position"] == "Midfield"]
-            att = roster[roster["position"] == "Attack"]
-            
-            squad_intel.append({
-                "team": team,
-                "gk_strength": gk["market_value_in_eur"].max() if len(gk) > 0 else 0,
-                "def_strength": defenders.nlargest(4, "market_value_in_eur")["market_value_in_eur"].mean() if len(defenders) > 0 else 0,
-                "mid_strength": mid.nlargest(4, "market_value_in_eur")["market_value_in_eur"].mean() if len(mid) > 0 else 0,
-                "att_strength": att.nlargest(3, "market_value_in_eur")["market_value_in_eur"].mean() if len(att) > 0 else 0
-            })
-        df_intel = pd.DataFrame(squad_intel)
-        
-        # Merge intelligence into prediction df
-        df_pred_v2 = df_pred.copy()
-        df_pred_v2 = df_pred_v2.merge(df_intel.rename(columns={c: "home_"+c for c in df_intel.columns if c != "team"}).rename(columns={"team": "home_team"}), on="home_team", how="left")
-        df_pred_v2 = df_pred_v2.merge(df_intel.rename(columns={c: "away_"+c for c in df_intel.columns if c != "team"}).rename(columns={"team": "away_team"}), on="away_team", how="left")
-        
-        intel_cols = [c for c in df_pred_v2.columns if "strength" in c]
-        df_pred_v2[intel_cols] = df_pred_v2[intel_cols].fillna(0)
-        
-        features_v2 = ['elo_diff', 'home_elo', 'away_elo', 'is_neutral', 'home_gk_strength', 'away_gk_strength', 'home_def_strength', 'away_def_strength', 'home_mid_strength', 'away_mid_strength', 'home_att_strength', 'away_att_strength']
-        
-        # Rename to match training script names
-        df_pred_v2 = df_pred_v2.rename(columns={"home_elo_pre": "home_elo", "away_elo_pre": "away_elo", "neutral": "is_neutral"})
-        X_pred_v2 = df_pred_v2[features_v2]
-        
-        cb_h = CatBoostRegressor()
-        cb_a = CatBoostRegressor()
-        cb_h.load_model("models/catboost_home.cbm")
-        cb_a.load_model("models/catboost_away.cbm")
-        
-        lambda_h_v2 = cb_h.predict(X_pred_v2)
-        lambda_a_v2 = cb_a.predict(X_pred_v2)
-        
-        v2_lambda_lookup = {}
-        for i in range(len(df_pred_v2)):
-            ht = df_pred_v2.iloc[i]['home_team']
-            at = df_pred_v2.iloc[i]['away_team']
-            v2_lambda_lookup[(ht, at)] = (max(lambda_h_v2[i], 0.01), max(lambda_a_v2[i], 0.01))
-            
-    except Exception as e:
-        print(f"Warning: V2 Feature generation failed. V2 will default to V1. Error: {e}")
-        v2_lambda_lookup = lambda_lookup
+        lambda_lookup[(ht, at)] = (max(lambda_h[i], 0.01), max(lambda_a[i], 0.01))
         
     # Get shootout probabilities
     shootout_lookup = {}
@@ -307,7 +237,7 @@ def encode_and_predict(df_pred):
             p_home_wins_pen = 0.50
         shootout_lookup[(ht, at)] = p_home_wins_pen
         
-    return lambda_lookup, v2_lambda_lookup, shootout_lookup
+    return lambda_lookup, shootout_lookup
 
 # ------------------------------------------------------------------
 # 2. TOURNAMENT LOGIC
