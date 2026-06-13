@@ -285,6 +285,15 @@ export default function FixturesEditorClient({ pendingMatches, completedMatches 
                         onChange={(e) => updateScorer(i, 'minute', e.target.value === '' ? '' : parseInt(e.target.value))} 
                         className="w-20 bg-neutral-900 border-neutral-700 h-[38px]" 
                       />
+                      <label className="flex items-center gap-1 text-xs text-neutral-400 cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={s.is_own_goal || false} 
+                          onChange={(e) => updateScorer(i, 'is_own_goal', e.target.checked)}
+                          className="w-4 h-4 rounded border-neutral-700 bg-neutral-900"
+                        />
+                        OG
+                      </label>
                     </div>
                   ))}
                 </div>

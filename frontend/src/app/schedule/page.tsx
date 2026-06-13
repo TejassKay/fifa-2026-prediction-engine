@@ -92,8 +92,10 @@ export default function SchedulePage() {
                         <span className="text-base font-bold uppercase text-center">{match.team_a}</span>
                         {match.status === 'completed' && match.goal_scorers && (
                           <div className="text-[10px] text-neutral-400 text-center mt-1 space-y-1">
-                            {match.goal_scorers.filter((s:any) => s.team === match.team_a).map((s:any, i:number) => (
-                              <div key={i}>{s.player_name} {s.minute ? `(${s.minute}')` : ''}</div>
+                            {match.goal_scorers
+                              .filter((s:any) => (s.team === match.team_a && !s.is_own_goal) || (s.team === match.team_b && s.is_own_goal))
+                              .map((s:any, i:number) => (
+                              <div key={i}>{s.player_name} {s.minute ? `(${s.minute}')` : ''} {s.is_own_goal ? '(OG)' : ''}</div>
                             ))}
                           </div>
                         )}
@@ -112,8 +114,10 @@ export default function SchedulePage() {
                         <span className="text-base font-bold uppercase text-center">{match.team_b}</span>
                         {match.status === 'completed' && match.goal_scorers && (
                           <div className="text-[10px] text-neutral-400 text-center mt-1 space-y-1">
-                            {match.goal_scorers.filter((s:any) => s.team === match.team_b).map((s:any, i:number) => (
-                              <div key={i}>{s.player_name} {s.minute ? `(${s.minute}')` : ''}</div>
+                            {match.goal_scorers
+                              .filter((s:any) => (s.team === match.team_b && !s.is_own_goal) || (s.team === match.team_a && s.is_own_goal))
+                              .map((s:any, i:number) => (
+                              <div key={i}>{s.player_name} {s.minute ? `(${s.minute}')` : ''} {s.is_own_goal ? '(OG)' : ''}</div>
                             ))}
                           </div>
                         )}

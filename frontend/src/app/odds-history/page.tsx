@@ -16,7 +16,9 @@ export default function OddsHistoryPage() {
         const formatted = [];
         const allTeams = new Set<string>();
         
-        for (const [match_id, odds] of Object.entries(d)) {
+        for (const item of d) {
+          const match_id = item.match_id;
+          const odds = item.odds;
           const entry: any = { match_id };
           for (const [team, prob] of Object.entries(odds as any)) {
             entry[team] = prob;

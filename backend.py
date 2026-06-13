@@ -57,6 +57,8 @@ class GoalScorer(BaseModel):
     player_id: Optional[str] = None
     player_name: str
     minute: int
+    team: Optional[str] = None
+    is_own_goal: Optional[bool] = False
 
 class MatchRecordRequest(BaseModel):
     match_id: str
@@ -1273,7 +1275,25 @@ def get_timeline():
 
 @app.get("/api/stats/odds-history")
 def api_get_odds_history():
-    return database.get_odds_history()
+    odds_data = database.get_odds_history()
+    completed = database.get_completed_matches()
+    completed_sorted = sorted(completed, key=lambda x: str(x.get('date', '')))
+    
+    m_ids = ["pre_tournament"] + [str(m['match_id']) for m in completed_sorted]
+    
+    # If there are any stray match_ids in odds_data not in m_ids (e.g. from manual runs), add them at the end
+    stray_ids = [m for m in odds_data.keys() if m not in m_ids]
+    m_ids.extend(stray_ids)
+    
+    formatted = []
+    for m_id in m_ids:
+        if m_id in odds_data:
+            formatted.append({
+                "match_id": m_id,
+                "odds": odds_data[m_id]
+            })
+            
+    return formatted
 
 if __name__ == "__main__":
     import uvicorn
