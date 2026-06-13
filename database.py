@@ -1,51 +1,70 @@
 import sqlite3
 import json
 import os
+from contextlib import contextmanager
 
 DB_PATH = "tournament.db"
 
+_pg_pool = None
+
+def init_pool(db_url):
+    global _pg_pool
+    if _pg_pool is None:
+        import psycopg2.pool
+        _pg_pool = psycopg2.pool.ThreadedConnectionPool(minconn=1, maxconn=10, dsn=db_url)
+
+@contextmanager
 def get_connection():
     db_url = os.environ.get("DATABASE_URL")
     if db_url and (db_url.startswith("postgres://") or db_url.startswith("postgresql://")):
-        import psycopg2
-        import psycopg2.extras
-        conn = psycopg2.connect(db_url)
-        return conn, "postgres"
+        init_pool(db_url)
+        conn = _pg_pool.getconn()
+        try:
+            yield conn, "postgres"
+        finally:
+            _pg_pool.putconn(conn)
     else:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
-        return conn, "sqlite"
+        try:
+            yield conn, "sqlite"
+        finally:
+            conn.close()
 
 def execute_write(query, params=None):
-    conn, db_type = get_connection()
-    c = conn.cursor()
-    if db_type == "postgres" and params:
-        query = query.replace("?", "%s")
-    if params:
-        c.execute(query, params)
-    else:
-        c.execute(query)
-    conn.commit()
-    conn.close()
+    with get_connection() as (conn, db_type):
+        c = conn.cursor()
+        try:
+            if db_type == "postgres" and params:
+                query = query.replace("?", "%s")
+            if params:
+                c.execute(query, params)
+            else:
+                c.execute(query)
+            conn.commit()
+        finally:
+            c.close()
 
 def execute_read(query, params=None):
-    conn, db_type = get_connection()
-    if db_type == "postgres":
-        import psycopg2.extras
-        c = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-    else:
-        c = conn.cursor()
-        
-    if db_type == "postgres" and params:
-        query = query.replace("?", "%s")
-        
-    if params:
-        c.execute(query, params)
-    else:
-        c.execute(query)
-    rows = c.fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
+    with get_connection() as (conn, db_type):
+        if db_type == "postgres":
+            import psycopg2.extras
+            c = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        else:
+            c = conn.cursor()
+            
+        try:
+            if db_type == "postgres" and params:
+                query = query.replace("?", "%s")
+                
+            if params:
+                c.execute(query, params)
+            else:
+                c.execute(query)
+            rows = c.fetchall()
+            return [dict(r) for r in rows]
+        finally:
+            c.close()
 
 def init_db():
     execute_write('''
@@ -121,21 +140,23 @@ def delete_match(match_id):
     execute_write("DELETE FROM matches WHERE match_id=?", (str(match_id),))
 
 def save_odds_snapshot(match_id, odds_dict):
-    conn, db_type = get_connection()
-    c = conn.cursor()
-    query = '''
-        INSERT INTO odds_history (match_id, team, champion_prob)
-        VALUES (?, ?, ?)
-        ON CONFLICT(match_id, team) DO UPDATE SET
-            champion_prob=excluded.champion_prob
-    '''
-    if db_type == 'postgres':
-        query = query.replace('?', '%s')
-        
-    for team, prob in odds_dict.items():
-        c.execute(query, (str(match_id), team, prob))
-    conn.commit()
-    conn.close()
+    with get_connection() as (conn, db_type):
+        c = conn.cursor()
+        try:
+            query = '''
+                INSERT INTO odds_history (match_id, team, champion_prob)
+                VALUES (?, ?, ?)
+                ON CONFLICT(match_id, team) DO UPDATE SET
+                    champion_prob=excluded.champion_prob
+            '''
+            if db_type == 'postgres':
+                query = query.replace('?', '%s')
+                
+            for team, prob in odds_dict.items():
+                c.execute(query, (str(match_id), team, prob))
+            conn.commit()
+        finally:
+            c.close()
 
 def get_odds_history():
     rows = execute_read("SELECT * FROM odds_history")
