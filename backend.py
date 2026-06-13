@@ -1165,7 +1165,8 @@ def get_golden_boot():
                 scorers = json.loads(match["goal_scorers"])
                 for s in scorers:
                     player_name = s.get("player_name")
-                    if player_name:
+                    is_own_goal = s.get("is_own_goal", False)
+                    if player_name and not is_own_goal:
                         player_goals[player_name] += 1
                         if s.get("team"):
                             player_teams[player_name] = s.get("team")
