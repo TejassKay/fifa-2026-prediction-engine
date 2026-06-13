@@ -241,7 +241,46 @@ def load_data():
 
 @app.get("/api/predictions/champion")
 def get_champions():
-    return DATA.get("champions", [])
+    champs = DATA.get("champions", [])
+    
+    odds_data = database.get_odds_history()
+    completed = database.get_completed_matches()
+    completed_sorted = sorted(completed, key=lambda x: str(x.get('date', '')))
+    
+    m_ids = ["pre_tournament"] + [str(m['match_id']) for m in completed_sorted]
+    available_snaps = [m for m in m_ids if m in odds_data]
+    
+    prev_id = None
+    if len(available_snaps) >= 2:
+        prev_id = available_snaps[-2]
+    elif len(available_snaps) == 1:
+        prev_id = available_snaps[0]
+        
+    enriched = []
+    for c in champs:
+        team = c["team"]
+        current_prob = c["champion_probability"]
+        prev_prob = current_prob
+        
+        if prev_id and prev_id in odds_data and team in odds_data[prev_id]:
+            prev_prob = odds_data[prev_id][team]
+            
+        delta = current_prob - prev_prob
+        
+        c_copy = dict(c)
+        c_copy["previous_probability"] = prev_prob
+        if delta > 0.0001:
+            c_copy["trend"] = "up"
+        elif delta < -0.0001:
+            c_copy["trend"] = "down"
+        else:
+            c_copy["trend"] = "flat"
+        c_copy["delta"] = float(delta)
+        enriched.append(c_copy)
+        
+    # Sort teams dynamically by current probability
+    enriched.sort(key=lambda x: x["champion_probability"], reverse=True)
+    return enriched
 
 @app.get("/api/teams/{team_id}")
 def get_team_stats(team_id: str):
