@@ -643,6 +643,8 @@ def get_upcoming_fixtures():
         
         try:
             match_dt_naive = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
+            if time_str == "00:00":
+                match_dt_naive += timedelta(days=1)
             match_dt = match_dt_naive.replace(tzinfo=et_tz)
         except Exception:
             continue
@@ -660,7 +662,7 @@ def get_upcoming_fixtures():
             match_copy["timestamp"] = int(match_dt.timestamp() * 1000)
             active_matches.append(match_copy)
             
-    matches = active_matches[:5]
+    matches = active_matches[:10]
     
     results = []
     for match in matches:

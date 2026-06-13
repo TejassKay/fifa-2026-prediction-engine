@@ -11,7 +11,7 @@ export default function FixturesPage() {
             Upcoming Fixtures
           </h1>
           <p className="text-gray-400 text-lg md:text-xl font-medium mt-2">
-            The next 5 matches of the tournament. Swipe through to view advanced Monte Carlo forecasts.
+            The next 10 matches of the tournament. Swipe through to view advanced Monte Carlo forecasts.
           </p>
         </header>
         
