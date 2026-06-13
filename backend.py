@@ -662,6 +662,7 @@ def get_upcoming_fixtures():
             match_copy["timestamp"] = int(match_dt.timestamp() * 1000)
             active_matches.append(match_copy)
             
+    active_matches.sort(key=lambda x: x.get("timestamp", 0))
     matches = active_matches[:10]
     
     results = []
@@ -1191,6 +1192,18 @@ def get_full_schedule():
                 
         cleaned_schedule.append(c)
         
+    def get_ts(m):
+        date_str = m.get("date", "2026-06-11")
+        time_str = m.get("time_et", "00:00")
+        try:
+            dt = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
+            if time_str == "00:00":
+                dt += timedelta(days=1)
+            return int(dt.replace(tzinfo=ZoneInfo("US/Eastern")).timestamp())
+        except Exception:
+            return 0
+            
+    cleaned_schedule.sort(key=get_ts)
     return cleaned_schedule
 
 @app.get("/api/fixtures/pending")
