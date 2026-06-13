@@ -721,9 +721,29 @@ def get_match_details(match_id: str):
                 group_data = g.get("teams", [])
                 break
                 
-    champions = DATA.get("champions", [])
-    home_prog = next((c for c in champions if c["team"] == home), {})
-    away_prog = next((c for c in champions if c["team"] == away), {})
+    champions = get_champions()
+    
+    def find_prog(team_name):
+        alias_map = {
+            "united states": "usa", "usa": "united states",
+            "korea republic": "south korea", "south korea": "korea republic",
+            "ir iran": "iran", "iran": "ir iran",
+            "türkiye": "turkey", "turkey": "türkiye",
+            "côte d'ivoire": "ivory coast", "ivory coast": "côte d'ivoire",
+            "cape verde": "cabo verde", "cabo verde": "cape verde",
+            "congo dr": "dr congo", "dr congo": "congo dr",
+            "czechia": "czech republic", "czech republic": "czechia"
+        }
+        res = next((c for c in champions if c["team"].lower() == team_name.lower()), None)
+        if res: return res
+        mapped = alias_map.get(team_name.lower())
+        if mapped:
+            res = next((c for c in champions if c["team"].lower() == mapped), None)
+            if res: return res
+        return {}
+
+    home_prog = find_prog(home)
+    away_prog = find_prog(away)
     
     return {
         "id": match_id,
