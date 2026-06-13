@@ -73,12 +73,21 @@ export default function OddsHistoryPage() {
           {historyData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={historyData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-                <XAxis dataKey="match_id" stroke="#525252" tick={{ fill: '#a3a3a3', fontSize: 12 }} />
+                <XAxis 
+                  dataKey="match_id" 
+                  stroke="#525252" 
+                  tick={{ fill: '#a3a3a3', fontSize: 12 }} 
+                  tickFormatter={(val, idx) => val === 'pre_tournament' ? 'Pre' : `${idx}`} 
+                />
                 <YAxis stroke="#525252" tick={{ fill: '#a3a3a3', fontSize: 12 }} tickFormatter={(val) => `${(val * 100).toFixed(0)}%`} />
                 <Tooltip 
                   contentStyle={{ backgroundColor: '#171717', borderColor: '#262626', color: '#fff' }}
                   itemStyle={{ fontWeight: 'bold' }}
                   formatter={(value: any) => [`${(Number(value) * 100).toFixed(1)}%`]}
+                  labelFormatter={(label, payload) => {
+                    const idx = historyData.findIndex(d => d.match_id === label);
+                    return label === 'pre_tournament' ? 'Pre-Tournament' : `Match ${idx}`;
+                  }}
                   labelStyle={{ display: 'none' }}
                   itemSorter={(item) => -(item.value as number)}
                 />

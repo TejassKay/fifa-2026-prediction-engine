@@ -246,9 +246,33 @@ def get_champions():
     
     odds_data = database.get_odds_history()
     completed = database.get_completed_matches()
-    completed_sorted = sorted(completed, key=lambda x: str(x.get('date', '')))
+    
+    schedule = DATA.get("schedule", [])
+    schedule_dict = {str(m.get("match_number")): m for m in schedule}
+    
+    def get_ts(m):
+        m_id = str(m['match_id'])
+        sch_m = schedule_dict.get(m_id, {})
+        date_str = sch_m.get("date", m.get("date", "2026-06-11"))
+        time_str = sch_m.get("time_et", "00:00")
+        try:
+            from datetime import datetime, timedelta
+            from zoneinfo import ZoneInfo
+            dt = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
+            if time_str == "00:00":
+                dt += timedelta(days=1)
+            return int(dt.replace(tzinfo=ZoneInfo("US/Eastern")).timestamp())
+        except Exception:
+            return int(m_id) if m_id.isdigit() else 0
+            
+    completed_sorted = sorted(completed, key=get_ts)
     
     m_ids = ["pre_tournament"] + [str(m['match_id']) for m in completed_sorted]
+    
+    # Include stray match_ids that are in odds_data but missing from m_ids
+    stray_ids = [m for m in odds_data.keys() if m not in m_ids]
+    m_ids.extend(stray_ids)
+    
     available_snaps = [m for m in m_ids if m in odds_data]
     
     latest_id = None
