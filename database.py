@@ -23,7 +23,21 @@ def get_connection():
     db_url = os.environ.get("DATABASE_URL")
     if db_url and (db_url.startswith("postgres://") or db_url.startswith("postgresql://")):
         init_pool(db_url)
-        conn = _pg_pool.getconn()
+        
+        import time
+        from psycopg2.pool import PoolError
+        
+        conn = None
+        for _ in range(15):
+            try:
+                conn = _pg_pool.getconn()
+                break
+            except PoolError:
+                time.sleep(0.1)
+                
+        if not conn:
+            conn = _pg_pool.getconn()
+            
         try:
             yield conn, "postgres"
         finally:
