@@ -269,30 +269,23 @@ export default function MatchHub() {
              </div>
            </div>
 
-           {/* Visual Debug for Colors */}
-           <div className="flex justify-center text-[10px] text-red-500 font-mono mb-4">
-             DEBUG COLORS: {colorHome} (Home) vs {colorAway} (Away)
-           </div>
-
-           <div className="flex-1 w-full min-h-[300px] flex items-center justify-center -ml-4 match-radar-container relative">
-             <div className="absolute inset-0 z-10">
-               <ResponsiveContainer width="100%" height="100%">
-                 <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarData}>
-                   <PolarGrid stroke="rgba(255,255,255,0.1)" />
-                   <PolarAngleAxis dataKey="subject" tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: 'bold' }} />
-                   <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                   <Radar name={home_team} dataKey="A" stroke={colorHome} fill={colorHome} fillOpacity={0.4} isAnimationActive={false} />
-                 </RadarChart>
-               </ResponsiveContainer>
-             </div>
-             <div className="absolute inset-0 z-20 pointer-events-none">
-               <ResponsiveContainer width="100%" height="100%">
-                 <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarData}>
-                   <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                   <Radar name={away_team} dataKey="B" stroke={colorAway} fill={colorAway} fillOpacity={0.4} isAnimationActive={false} />
-                 </RadarChart>
-               </ResponsiveContainer>
-             </div>
+           <div 
+             className="flex-1 w-full min-h-[300px] flex items-center justify-center -ml-4 match-radar-container"
+             style={{
+               "--color-1": colorHome,
+               "--color-2": colorAway
+             } as React.CSSProperties}
+           >
+             <ResponsiveContainer width="100%" height="100%">
+               <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarData}>
+                 <PolarGrid stroke="rgba(255,255,255,0.1)" />
+                 <PolarAngleAxis dataKey="subject" tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: 'bold' }} />
+                 <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                 
+                 <Radar name={home_team} dataKey="A" stroke={colorHome} fill={colorHome} fillOpacity={0.4} isAnimationActive={true} />
+                 <Radar name={away_team} dataKey="B" stroke={colorAway} fill={colorAway} fillOpacity={0.4} isAnimationActive={true} />
+               </RadarChart>
+             </ResponsiveContainer>
            </div>
         </motion.div>
 
