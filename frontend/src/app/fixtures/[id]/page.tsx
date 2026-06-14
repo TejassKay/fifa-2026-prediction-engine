@@ -261,15 +261,32 @@ export default function MatchHub() {
              </div>
            </div>
 
-           <div className="flex-1 w-full min-h-[300px] flex items-center justify-center -ml-4">
+           {/* Visual Debug for Colors */}
+           <div className="flex justify-center text-[10px] text-red-500 font-mono mb-4">
+             DEBUG COLORS: {colorHome} (Home) vs {colorAway} (Away)
+           </div>
+
+           <div className="flex-1 w-full min-h-[300px] flex items-center justify-center -ml-4 match-radar-container">
+             <style>{`
+               .match-radar-container .recharts-radar:nth-of-type(1) polygon,
+               .match-radar-container .recharts-radar:nth-of-type(1) path {
+                 fill: ${colorHome} !important;
+                 stroke: ${colorHome} !important;
+               }
+               .match-radar-container .recharts-radar:nth-of-type(2) polygon,
+               .match-radar-container .recharts-radar:nth-of-type(2) path {
+                 fill: ${colorAway} !important;
+                 stroke: ${colorAway} !important;
+               }
+             `}</style>
              <ResponsiveContainer width="100%" height="100%">
                <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarData}>
                  <PolarGrid stroke="rgba(255,255,255,0.1)" />
                  <PolarAngleAxis dataKey="subject" tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: 'bold' }} />
                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
                  
-                 <Radar name={home_team} dataKey="A" stroke={colorHome} strokeWidth={3} fill={colorHome} fillOpacity={0.4} style={{ fill: colorHome, stroke: colorHome }} />
-                 <Radar name={away_team} dataKey="B" stroke={colorAway} strokeWidth={3} fill={colorAway} fillOpacity={0.4} style={{ fill: colorAway, stroke: colorAway }} />
+                 <Radar name={home_team} dataKey="A" fillOpacity={0.4} />
+                 <Radar name={away_team} dataKey="B" fillOpacity={0.4} />
                </RadarChart>
              </ResponsiveContainer>
            </div>
