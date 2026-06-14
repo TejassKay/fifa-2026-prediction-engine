@@ -748,8 +748,8 @@ def get_match_details(match_id: str):
     pred = predict_match(req)
     
     players = list(DATA.get("players", {}).values())
-    home_players = sorted([p for p in players if p.get("team") == home], key=lambda x: x.get("mvp_score", 0), reverse=True)[:3]
-    away_players = sorted([p for p in players if p.get("team") == away], key=lambda x: x.get("mvp_score", 0), reverse=True)[:3]
+    home_players = sorted([p for p in players if p.get("team", "").lower() == home.lower()], key=lambda x: x.get("mvp_score", 0), reverse=True)[:3]
+    away_players = sorted([p for p in players if p.get("team", "").lower() == away.lower()], key=lambda x: x.get("mvp_score", 0), reverse=True)[:3]
     
     storylines = DATA.get("storylines", [])
     match_stories = [s for s in storylines if home in s["title"] or away in s["title"] or home in s["description"] or away in s["description"]]

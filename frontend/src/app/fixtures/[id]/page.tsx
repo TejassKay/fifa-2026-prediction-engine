@@ -121,6 +121,8 @@ export default function MatchHub() {
       colorAway = colorHome === "#FFFFFF" || colorHome === "#E0E0E0" ? "#000000" : "#FFFFFF";
     }
   }
+  
+  console.log("DEBUG MATCH HUB:", { home_team, away_team, colorHome, colorAway });
 
   const renderPlayerCards = (players: any[]) => (
     <div className="space-y-3">
@@ -266,8 +268,8 @@ export default function MatchHub() {
                  <PolarAngleAxis dataKey="subject" tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: 'bold' }} />
                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
                  
-                 <Radar name={home_team} dataKey="A" stroke={colorHome} strokeWidth={3} fill={colorHome} fillOpacity={0.4} />
-                 <Radar name={away_team} dataKey="B" stroke={colorAway} strokeWidth={3} fill={colorAway} fillOpacity={0.4} />
+                 <Radar name={home_team} dataKey="A" stroke={colorHome} strokeWidth={3} fill={colorHome} fillOpacity={0.4} style={{ fill: colorHome, stroke: colorHome }} />
+                 <Radar name={away_team} dataKey="B" stroke={colorAway} strokeWidth={3} fill={colorAway} fillOpacity={0.4} style={{ fill: colorAway, stroke: colorAway }} />
                </RadarChart>
              </ResponsiveContainer>
            </div>
