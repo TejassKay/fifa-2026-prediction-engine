@@ -262,28 +262,12 @@ export default function MatchHub() {
            <div className="flex-1 w-full min-h-[300px] flex items-center justify-center -ml-4">
              <ResponsiveContainer width="100%" height="100%">
                <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarData}>
-                 <defs>
-                   <filter id="glowHome" x="-20%" y="-20%" width="140%" height="140%">
-                     <feGaussianBlur stdDeviation="3" result="blur" />
-                     <feMerge>
-                       <feMergeNode in="blur"/>
-                       <feMergeNode in="SourceGraphic"/>
-                     </feMerge>
-                   </filter>
-                   <filter id="glowAway" x="-20%" y="-20%" width="140%" height="140%">
-                     <feGaussianBlur stdDeviation="3" result="blur" />
-                     <feMerge>
-                       <feMergeNode in="blur"/>
-                       <feMergeNode in="SourceGraphic"/>
-                     </feMerge>
-                   </filter>
-                 </defs>
                  <PolarGrid stroke="rgba(255,255,255,0.1)" />
                  <PolarAngleAxis dataKey="subject" tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: 'bold' }} />
                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
                  
-                 <Radar name={home_team} dataKey="A" stroke={colorHome} strokeWidth={3} fill={colorHome} fillOpacity={0.4} filter="url(#glowHome)" />
-                 <Radar name={away_team} dataKey="B" stroke={colorAway} strokeWidth={3} fill={colorAway} fillOpacity={0.4} filter="url(#glowAway)" />
+                 <Radar name={home_team} dataKey="A" stroke={colorHome} strokeWidth={3} fill={colorHome} fillOpacity={0.4} />
+                 <Radar name={away_team} dataKey="B" stroke={colorAway} strokeWidth={3} fill={colorAway} fillOpacity={0.4} />
                </RadarChart>
              </ResponsiveContainer>
            </div>
