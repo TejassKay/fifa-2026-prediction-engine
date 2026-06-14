@@ -71,36 +71,6 @@ export default function MatchHub() {
     }
   }
 
-  // Forcefully inject colors into Recharts DOM elements to bypass any library bugs or Tailwind overrides
-  // MUST be placed before the conditional early return to satisfy Rules of Hooks
-  useEffect(() => {
-    if (!matchData) return;
-    const applyColors = () => {
-      const container = document.querySelector('.match-radar-container');
-      if (!container) return;
-      const radarGroups = container.querySelectorAll('.recharts-radar');
-      if (radarGroups.length >= 2) {
-        const homePolygons = radarGroups[0].querySelectorAll('polygon, path');
-        homePolygons.forEach(p => {
-          (p as HTMLElement).style.setProperty('fill', colorHome, 'important');
-          (p as HTMLElement).style.setProperty('stroke', colorHome, 'important');
-          (p as HTMLElement).style.setProperty('fill-opacity', '0.4', 'important');
-        });
-        const awayPolygons = radarGroups[1].querySelectorAll('polygon, path');
-        awayPolygons.forEach(p => {
-          (p as HTMLElement).style.setProperty('fill', colorAway, 'important');
-          (p as HTMLElement).style.setProperty('stroke', colorAway, 'important');
-          (p as HTMLElement).style.setProperty('fill-opacity', '0.4', 'important');
-        });
-      }
-    };
-    
-    applyColors();
-    // Re-apply shortly after render to catch any hydration delays
-    const timer = setTimeout(applyColors, 100);
-    return () => clearTimeout(timer);
-  }, [colorHome, colorAway, matchData]);
-
   if (loading || !matchData || !teamStats) {
     return (
       <div className="min-h-screen bg-black text-white p-4 md:p-8">
@@ -304,15 +274,23 @@ export default function MatchHub() {
              DEBUG COLORS: {colorHome} (Home) vs {colorAway} (Away)
            </div>
 
-           <div className="flex-1 w-full min-h-[300px] flex items-center justify-center -ml-4 match-radar-container">
+           <div 
+             className="flex-1 w-full min-h-[300px] flex items-center justify-center -ml-4 match-radar-container"
+             style={{
+               "--color-1": colorHome,
+               "--color-2": colorAway,
+               "--chart-1": colorHome,
+               "--chart-2": colorAway
+             } as React.CSSProperties}
+           >
              <ResponsiveContainer width="100%" height="100%">
                <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarData}>
                  <PolarGrid stroke="rgba(255,255,255,0.1)" />
                  <PolarAngleAxis dataKey="subject" tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: 'bold' }} />
                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
                  
-                 <Radar name={home_team} dataKey="A" stroke={colorHome} fill={colorHome} fillOpacity={0.4} />
-                 <Radar name={away_team} dataKey="B" stroke={colorAway} fill={colorAway} fillOpacity={0.4} />
+                 <Radar name={home_team} dataKey="A" stroke={colorHome} fill={colorHome} fillOpacity={0.4} isAnimationActive={false} />
+                 <Radar name={away_team} dataKey="B" stroke={colorAway} fill={colorAway} fillOpacity={0.4} isAnimationActive={false} />
                </RadarChart>
              </ResponsiveContainer>
            </div>
