@@ -268,13 +268,20 @@ export default function MatchHub() {
 
            <div className="flex-1 w-full min-h-[300px] flex items-center justify-center -ml-4 match-radar-container">
              <style>{`
-               .radar-home polygon, .radar-home path {
+               /* Base rule for ALL radars (will target the first one primarily) */
+               .match-radar-container .recharts-radar polygon,
+               .match-radar-container .recharts-radar path {
                  fill: ${colorHome} !important;
                  stroke: ${colorHome} !important;
+                 fill-opacity: 0.4 !important;
                }
-               .radar-away polygon, .radar-away path {
+               
+               /* Override rule for the SECOND radar (and subsequent ones) */
+               .match-radar-container .recharts-radar ~ .recharts-radar polygon,
+               .match-radar-container .recharts-radar ~ .recharts-radar path {
                  fill: ${colorAway} !important;
                  stroke: ${colorAway} !important;
+                 fill-opacity: 0.4 !important;
                }
              `}</style>
              <ResponsiveContainer width="100%" height="100%">
@@ -283,8 +290,8 @@ export default function MatchHub() {
                  <PolarAngleAxis dataKey="subject" tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: 'bold' }} />
                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
                  
-                 <Radar className="radar-home" name={home_team} dataKey="A" stroke={colorHome} fill={colorHome} fillOpacity={0.4} />
-                 <Radar className="radar-away" name={away_team} dataKey="B" stroke={colorAway} fill={colorAway} fillOpacity={0.4} />
+                 <Radar name={home_team} dataKey="A" stroke={colorHome} fill={colorHome} fillOpacity={0.4} />
+                 <Radar name={away_team} dataKey="B" stroke={colorAway} fill={colorAway} fillOpacity={0.4} />
                </RadarChart>
              </ResponsiveContainer>
            </div>
