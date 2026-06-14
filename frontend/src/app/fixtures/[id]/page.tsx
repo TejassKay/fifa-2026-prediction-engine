@@ -121,6 +121,34 @@ export default function MatchHub() {
       colorAway = colorHome === "#FFFFFF" || colorHome === "#E0E0E0" ? "#000000" : "#FFFFFF";
     }
   }
+
+  // Forcefully inject colors into Recharts DOM elements to bypass any library bugs or Tailwind overrides
+  useEffect(() => {
+    const applyColors = () => {
+      const container = document.querySelector('.match-radar-container');
+      if (!container) return;
+      const radarGroups = container.querySelectorAll('.recharts-radar');
+      if (radarGroups.length >= 2) {
+        const homePolygons = radarGroups[0].querySelectorAll('polygon, path');
+        homePolygons.forEach(p => {
+          (p as HTMLElement).style.setProperty('fill', colorHome, 'important');
+          (p as HTMLElement).style.setProperty('stroke', colorHome, 'important');
+          (p as HTMLElement).style.setProperty('fill-opacity', '0.4', 'important');
+        });
+        const awayPolygons = radarGroups[1].querySelectorAll('polygon, path');
+        awayPolygons.forEach(p => {
+          (p as HTMLElement).style.setProperty('fill', colorAway, 'important');
+          (p as HTMLElement).style.setProperty('stroke', colorAway, 'important');
+          (p as HTMLElement).style.setProperty('fill-opacity', '0.4', 'important');
+        });
+      }
+    };
+    
+    applyColors();
+    // Re-apply shortly after render to catch any hydration delays
+    const timer = setTimeout(applyColors, 100);
+    return () => clearTimeout(timer);
+  }, [colorHome, colorAway, matchData]);
   
   console.log("DEBUG MATCH HUB:", { home_team, away_team, colorHome, colorAway });
 
@@ -267,23 +295,6 @@ export default function MatchHub() {
            </div>
 
            <div className="flex-1 w-full min-h-[300px] flex items-center justify-center -ml-4 match-radar-container">
-             <style>{`
-               /* Base rule for ALL radars (will target the first one primarily) */
-               .match-radar-container .recharts-radar polygon,
-               .match-radar-container .recharts-radar path {
-                 fill: ${colorHome} !important;
-                 stroke: ${colorHome} !important;
-                 fill-opacity: 0.4 !important;
-               }
-               
-               /* Override rule for the SECOND radar (and subsequent ones) */
-               .match-radar-container .recharts-radar ~ .recharts-radar polygon,
-               .match-radar-container .recharts-radar ~ .recharts-radar path {
-                 fill: ${colorAway} !important;
-                 stroke: ${colorAway} !important;
-                 fill-opacity: 0.4 !important;
-               }
-             `}</style>
              <ResponsiveContainer width="100%" height="100%">
                <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarData}>
                  <PolarGrid stroke="rgba(255,255,255,0.1)" />
