@@ -41,6 +41,66 @@ export default function MatchHub() {
       });
   }, [id, router]);
 
+  // Compute colors early for the useEffect, safely checking matchData
+  let colorHome = "#000000";
+  let colorAway = "#000000";
+
+  const hexToRgb = (hex: string) => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) } : { r: 0, g: 0, b: 0 };
+  };
+
+  const isSimilar = (hex1: string, hex2: string) => {
+    const c1 = hexToRgb(hex1);
+    const c2 = hexToRgb(hex2);
+    const distance = Math.sqrt(Math.pow(c1.r - c2.r, 2) + Math.pow(c1.g - c2.g, 2) + Math.pow(c1.b - c2.b, 2));
+    return distance < 100;
+  };
+
+  if (matchData) {
+    colorHome = getTeamColorHex(matchData.home_team);
+    colorAway = getTeamColorHex(matchData.away_team);
+
+    if (isSimilar(colorHome, colorAway)) {
+      const secondaryAway = getTeamSecondaryColorHex(matchData.away_team);
+      if (!isSimilar(colorHome, secondaryAway)) {
+        colorAway = secondaryAway;
+      } else {
+        colorAway = colorHome === "#FFFFFF" || colorHome === "#E0E0E0" ? "#000000" : "#FFFFFF";
+      }
+    }
+  }
+
+  // Forcefully inject colors into Recharts DOM elements to bypass any library bugs or Tailwind overrides
+  // MUST be placed before the conditional early return to satisfy Rules of Hooks
+  useEffect(() => {
+    if (!matchData) return;
+    const applyColors = () => {
+      const container = document.querySelector('.match-radar-container');
+      if (!container) return;
+      const radarGroups = container.querySelectorAll('.recharts-radar');
+      if (radarGroups.length >= 2) {
+        const homePolygons = radarGroups[0].querySelectorAll('polygon, path');
+        homePolygons.forEach(p => {
+          (p as HTMLElement).style.setProperty('fill', colorHome, 'important');
+          (p as HTMLElement).style.setProperty('stroke', colorHome, 'important');
+          (p as HTMLElement).style.setProperty('fill-opacity', '0.4', 'important');
+        });
+        const awayPolygons = radarGroups[1].querySelectorAll('polygon, path');
+        awayPolygons.forEach(p => {
+          (p as HTMLElement).style.setProperty('fill', colorAway, 'important');
+          (p as HTMLElement).style.setProperty('stroke', colorAway, 'important');
+          (p as HTMLElement).style.setProperty('fill-opacity', '0.4', 'important');
+        });
+      }
+    };
+    
+    applyColors();
+    // Re-apply shortly after render to catch any hydration delays
+    const timer = setTimeout(applyColors, 100);
+    return () => clearTimeout(timer);
+  }, [colorHome, colorAway, matchData]);
+
   if (loading || !matchData || !teamStats) {
     return (
       <div className="min-h-screen bg-black text-white p-4 md:p-8">
@@ -98,57 +158,7 @@ export default function MatchHub() {
     { subject: 'Tactics', A: homeAttrs.Tactics, B: awayAttrs.Tactics, fullMark: 100 },
   ];
 
-  const hexToRgb = (hex: string) => {
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) } : { r: 0, g: 0, b: 0 };
-  };
-
-  const isSimilar = (hex1: string, hex2: string) => {
-    const c1 = hexToRgb(hex1);
-    const c2 = hexToRgb(hex2);
-    const distance = Math.sqrt(Math.pow(c1.r - c2.r, 2) + Math.pow(c1.g - c2.g, 2) + Math.pow(c1.b - c2.b, 2));
-    return distance < 100; // threshold for visual collision
-  };
-
-  let colorHome = getTeamColorHex(home_team);
-  let colorAway = getTeamColorHex(away_team);
-
-  if (isSimilar(colorHome, colorAway)) {
-    const secondaryAway = getTeamSecondaryColorHex(away_team);
-    if (!isSimilar(colorHome, secondaryAway)) {
-      colorAway = secondaryAway;
-    } else {
-      colorAway = colorHome === "#FFFFFF" || colorHome === "#E0E0E0" ? "#000000" : "#FFFFFF";
-    }
-  }
-
-  // Forcefully inject colors into Recharts DOM elements to bypass any library bugs or Tailwind overrides
-  useEffect(() => {
-    const applyColors = () => {
-      const container = document.querySelector('.match-radar-container');
-      if (!container) return;
-      const radarGroups = container.querySelectorAll('.recharts-radar');
-      if (radarGroups.length >= 2) {
-        const homePolygons = radarGroups[0].querySelectorAll('polygon, path');
-        homePolygons.forEach(p => {
-          (p as HTMLElement).style.setProperty('fill', colorHome, 'important');
-          (p as HTMLElement).style.setProperty('stroke', colorHome, 'important');
-          (p as HTMLElement).style.setProperty('fill-opacity', '0.4', 'important');
-        });
-        const awayPolygons = radarGroups[1].querySelectorAll('polygon, path');
-        awayPolygons.forEach(p => {
-          (p as HTMLElement).style.setProperty('fill', colorAway, 'important');
-          (p as HTMLElement).style.setProperty('stroke', colorAway, 'important');
-          (p as HTMLElement).style.setProperty('fill-opacity', '0.4', 'important');
-        });
-      }
-    };
-    
-    applyColors();
-    // Re-apply shortly after render to catch any hydration delays
-    const timer = setTimeout(applyColors, 100);
-    return () => clearTimeout(timer);
-  }, [colorHome, colorAway, matchData]);
+  // Color logic moved above to satisfy rules of hooks
   
   console.log("DEBUG MATCH HUB:", { home_team, away_team, colorHome, colorAway });
 
