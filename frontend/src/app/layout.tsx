@@ -20,6 +20,20 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
+      <head>
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-L4DW12MR0D"></script>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+
+              gtag('config', 'G-L4DW12MR0D');
+            `
+          }}
+        />
+      </head>
       <body className={`${inter.variable} ${oswald.variable} bg-background text-foreground antialiased flex flex-col md:flex-row h-screen overflow-hidden relative`}>
         {/* Ambient Neon Gradients */}
         <div className="absolute top-[-10%] left-[-10%] w-[40vw] h-[40vw] rounded-full bg-[#00f2fe]/20 blur-[120px] pointer-events-none z-[-2]"></div>
