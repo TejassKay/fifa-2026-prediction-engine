@@ -268,13 +268,11 @@ export default function MatchHub() {
 
            <div className="flex-1 w-full min-h-[300px] flex items-center justify-center -ml-4 match-radar-container">
              <style>{`
-               .match-radar-container .recharts-radar:nth-of-type(1) polygon,
-               .match-radar-container .recharts-radar:nth-of-type(1) path {
+               .radar-home polygon, .radar-home path {
                  fill: ${colorHome} !important;
                  stroke: ${colorHome} !important;
                }
-               .match-radar-container .recharts-radar:nth-of-type(2) polygon,
-               .match-radar-container .recharts-radar:nth-of-type(2) path {
+               .radar-away polygon, .radar-away path {
                  fill: ${colorAway} !important;
                  stroke: ${colorAway} !important;
                }
@@ -285,8 +283,8 @@ export default function MatchHub() {
                  <PolarAngleAxis dataKey="subject" tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: 'bold' }} />
                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
                  
-                 <Radar name={home_team} dataKey="A" fillOpacity={0.4} />
-                 <Radar name={away_team} dataKey="B" fillOpacity={0.4} />
+                 <Radar className="radar-home" name={home_team} dataKey="A" stroke={colorHome} fill={colorHome} fillOpacity={0.4} />
+                 <Radar className="radar-away" name={away_team} dataKey="B" stroke={colorAway} fill={colorAway} fillOpacity={0.4} />
                </RadarChart>
              </ResponsiveContainer>
            </div>
