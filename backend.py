@@ -315,8 +315,33 @@ def get_champions():
     enriched.sort(key=lambda x: x["champion_probability"], reverse=True)
     return enriched
 
+def resolve_team_name(team_id: str) -> str:
+    if not team_id:
+        return team_id
+    search_term = team_id.lower().strip()
+    alias_map = {
+        "united states": "United States", "usa": "United States",
+        "iran": "Iran", "ir iran": "Iran",
+        "south korea": "South Korea", "korea republic": "South Korea",
+        "ivory coast": "Côte d'Ivoire", "côte d'ivoire": "Côte d'Ivoire",
+        "côte d’ivoire": "Côte d'Ivoire", "cote d'ivoire": "Côte d'Ivoire",
+        "turkey": "Turkey", "türkiye": "Turkey",
+        "cape verde": "Cabo Verde", "cabo verde": "Cabo Verde",
+        "dr congo": "DR Congo", "congo dr": "DR Congo",
+        "czech republic": "Czech Republic", "czechia": "Czech Republic"
+    }
+    if search_term in alias_map:
+        return alias_map[search_term]
+        
+    champs = DATA.get("champions", [])
+    for c in champs:
+        if c["team"].lower() == search_term:
+            return c["team"]
+    return team_id
+
 @app.get("/api/teams/{team_id}")
 def get_team_stats(team_id: str):
+    team_id = resolve_team_name(team_id)
     elo = DATA.get("elo", {}).get(team_id, 1500)
     champs = DATA.get("champions", [])
     team_data = next((t for t in champs if t["team"] == team_id), None)
@@ -353,6 +378,8 @@ def get_team_squad(team_id: str):
         "iran": "ir iran",
         "south korea": "korea republic",
         "ivory coast": "côte d'ivoire",
+        "côte d’ivoire": "côte d'ivoire",
+        "cote d'ivoire": "côte d'ivoire",
         "turkey": "türkiye",
         "cape verde": "cabo verde",
         "dr congo": "congo dr",
@@ -755,6 +782,7 @@ def get_match_details(match_id: str):
             "ir iran": "iran", "iran": "ir iran",
             "türkiye": "turkey", "turkey": "türkiye",
             "côte d'ivoire": "ivory coast", "ivory coast": "côte d'ivoire",
+            "côte d’ivoire": "ivory coast", "cote d'ivoire": "ivory coast",
             "cape verde": "cabo verde", "cabo verde": "cape verde",
             "congo dr": "dr congo", "dr congo": "congo dr",
             "czechia": "czech republic", "czech republic": "czechia"
