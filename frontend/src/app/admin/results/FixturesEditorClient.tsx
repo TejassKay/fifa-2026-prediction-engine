@@ -274,9 +274,9 @@ export default function FixturesEditorClient({ pendingMatches, completedMatches 
                       />
                       <Input 
                         placeholder="Min" 
-                        type="number" 
+                        type="text" 
                         value={s.minute || ''} 
-                        onChange={(e) => updateScorer(i, 'minute', e.target.value === '' ? '' : parseInt(e.target.value))} 
+                        onChange={(e) => updateScorer(i, 'minute', e.target.value)} 
                         className="w-16 bg-neutral-900 border-neutral-700 h-[38px]" 
                       />
                       <label className="flex items-center gap-1 text-xs text-neutral-400 cursor-pointer">
