@@ -103,8 +103,8 @@ export default function SchedulePage() {
                               });
                               return Object.entries(grouped).map(([name, events], i) => {
                                 const minutes = events.map(e => {
-                                  let m = e.minute ? `${e.minute}'` : '';
-                                  if (e.is_penalty) m += " P";
+                                  let m = e.minute ? `${String(e.minute)}'` : '';
+                                  if (e.is_penalty) m += " (P)";
                                   return m;
                                 }).filter(m => m).join(", ");
                                 return <div key={i}>{name} {minutes ? `(${minutes})` : ''}</div>;
@@ -138,8 +138,8 @@ export default function SchedulePage() {
                               });
                               return Object.entries(grouped).map(([name, events], i) => {
                                 const minutes = events.map(e => {
-                                  let m = e.minute ? `${e.minute}'` : '';
-                                  if (e.is_penalty) m += " P";
+                                  let m = e.minute ? `${String(e.minute)}'` : '';
+                                  if (e.is_penalty) m += " (P)";
                                   return m;
                                 }).filter(m => m).join(", ");
                                 return <div key={i}>{name} {minutes ? `(${minutes})` : ''}</div>;
