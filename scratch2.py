@@ -1,7 +1,4 @@
-from fastapi.testclient import TestClient
-from backend import app
-
-client = TestClient(app)
+from backend import MatchRecordRequest
 payload = {
   "match_id": "11",
   "home_score": 2,
@@ -24,6 +21,8 @@ payload = {
   "cards": []
 }
 
-response = client.post("/api/matches/record", json=payload, headers={"Authorization": "Bearer super_secret_jwt_key_1234567890"})
-print(response.status_code)
-print(response.json())
+try:
+    req = MatchRecordRequest(**payload)
+    print("Success")
+except Exception as e:
+    print("Error:", e)

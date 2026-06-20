@@ -108,8 +108,14 @@ export default function FixturesEditorClient({ pendingMatches, completedMatches 
           home_score: Number(homeScore),
           away_score: Number(awayScore),
           winner: winner,
-          goal_scorers: scorers.filter((s: any) => s.player_name && s.player_name.trim() !== ''),
-          cards: cards.filter((c: any) => c.player_name && c.player_name.trim() !== '')
+          goal_scorers: scorers.filter((s: any) => s.player_name && s.player_name.trim() !== '').map((s: any) => ({
+            ...s,
+            minute: s.minute ? String(s.minute) : ''
+          })),
+          cards: cards.filter((c: any) => c.player_name && c.player_name.trim() !== '').map((c: any) => ({
+            ...c,
+            minute: c.minute ? String(c.minute) : ''
+          }))
         })
       });
       
@@ -286,12 +292,11 @@ export default function FixturesEditorClient({ pendingMatches, completedMatches 
                         className="flex-1 min-w-[120px] bg-neutral-900 border border-neutral-700 text-white p-2 rounded text-sm outline-none focus:border-blue-500"
                       />
                       <input 
-                        type="number"
-                        value={s.minute || ''} 
+                        type="text"
+                        value={s.minute ? String(s.minute) : ''} 
                         onChange={(e) => updateScorer(i, 'minute', e.target.value)}
                         placeholder="Min"
-                        className="w-16 bg-neutral-900 border border-neutral-700 text-white p-2 rounded text-sm outline-none focus:border-blue-500"
-                        min="1" max="120"
+                        className="w-16 bg-neutral-900 border border-neutral-700 text-white p-2 rounded text-sm outline-none focus:border-blue-500 text-center"
                       />
                       <input 
                         list={`players-${selectedMatch.match_number}`}
@@ -302,13 +307,6 @@ export default function FixturesEditorClient({ pendingMatches, completedMatches 
                         disabled={s.is_own_goal}
                       />
                       <div className="flex items-center gap-2">
-                        <Input 
-                          placeholder="Min" 
-                          type="text" 
-                          value={s.minute ? String(s.minute) : ''} 
-                          onChange={(e) => updateScorer(i, 'minute', e.target.value)} 
-                          className="w-16 bg-neutral-900 border-neutral-700 h-[38px] text-center text-white" 
-                        />
                       <label className="flex items-center gap-1 text-xs text-neutral-400 cursor-pointer">
                         <input 
                           type="checkbox" 
