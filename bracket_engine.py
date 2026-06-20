@@ -22,9 +22,16 @@ def build_bracket(groups_data, lambda_lookup, champs, live_schedule=None):
         if len(teams) >= 3:
             firsts[grp] = teams[0]["team"]
             seconds[grp] = teams[1]["team"]
-            thirds.append({"team": teams[2]["team"], "group": grp, "prob": teams[2]["prob"]})
+            thirds.append({
+                "team": teams[2]["team"], 
+                "group": grp, 
+                "prob": teams[2].get("prob", 0),
+                "pts": teams[2].get("pts", 0),
+                "gd": teams[2].get("gd", 0),
+                "gf": teams[2].get("gf", 0)
+            })
             
-    thirds.sort(key=lambda x: x["prob"], reverse=True)
+    thirds.sort(key=lambda x: (x.get("pts", 0), x.get("gd", 0), x.get("gf", 0), x.get("prob", 0)), reverse=True)
     best_thirds = thirds[:8]
     
     unassigned_thirds = list(best_thirds)

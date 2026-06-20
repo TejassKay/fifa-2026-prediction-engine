@@ -92,11 +92,24 @@ export default function SchedulePage() {
                         <span className="text-base font-bold uppercase text-center">{match.team_a}</span>
                         {match.status === 'completed' && match.goal_scorers && (
                           <div className="text-[10px] text-neutral-400 text-center mt-1 space-y-1">
-                            {match.goal_scorers
-                              .filter((s:any) => (s.team === match.team_a && !s.is_own_goal) || (s.team === match.team_b && s.is_own_goal))
-                              .map((s:any, i:number) => (
-                              <div key={i}>{s.player_name} {s.minute ? `(${s.minute}')` : ''} {s.is_own_goal ? '(OG)' : ''}</div>
-                            ))}
+                            {(() => {
+                              const filtered = match.goal_scorers.filter((s:any) => (s.team === match.team_a && !s.is_own_goal) || (s.team === match.team_b && s.is_own_goal));
+                              const grouped: Record<string, any[]> = {};
+                              filtered.forEach((s:any) => {
+                                let key = s.player_name || "Unknown";
+                                if (s.is_own_goal) key += " (OG)";
+                                if (!grouped[key]) grouped[key] = [];
+                                grouped[key].push(s);
+                              });
+                              return Object.entries(grouped).map(([name, events], i) => {
+                                const minutes = events.map(e => {
+                                  let m = e.minute ? `${e.minute}'` : '';
+                                  if (e.is_penalty) m += " P";
+                                  return m;
+                                }).filter(m => m).join(", ");
+                                return <div key={i}>{name} {minutes ? `(${minutes})` : ''}</div>;
+                              });
+                            })()}
                           </div>
                         )}
                       </div>
@@ -114,11 +127,24 @@ export default function SchedulePage() {
                         <span className="text-base font-bold uppercase text-center">{match.team_b}</span>
                         {match.status === 'completed' && match.goal_scorers && (
                           <div className="text-[10px] text-neutral-400 text-center mt-1 space-y-1">
-                            {match.goal_scorers
-                              .filter((s:any) => (s.team === match.team_b && !s.is_own_goal) || (s.team === match.team_a && s.is_own_goal))
-                              .map((s:any, i:number) => (
-                              <div key={i}>{s.player_name} {s.minute ? `(${s.minute}')` : ''} {s.is_own_goal ? '(OG)' : ''}</div>
-                            ))}
+                            {(() => {
+                              const filtered = match.goal_scorers.filter((s:any) => (s.team === match.team_b && !s.is_own_goal) || (s.team === match.team_a && s.is_own_goal));
+                              const grouped: Record<string, any[]> = {};
+                              filtered.forEach((s:any) => {
+                                let key = s.player_name || "Unknown";
+                                if (s.is_own_goal) key += " (OG)";
+                                if (!grouped[key]) grouped[key] = [];
+                                grouped[key].push(s);
+                              });
+                              return Object.entries(grouped).map(([name, events], i) => {
+                                const minutes = events.map(e => {
+                                  let m = e.minute ? `${e.minute}'` : '';
+                                  if (e.is_penalty) m += " P";
+                                  return m;
+                                }).filter(m => m).join(", ");
+                                return <div key={i}>{name} {minutes ? `(${minutes})` : ''}</div>;
+                              });
+                            })()}
                           </div>
                         )}
                       </div>

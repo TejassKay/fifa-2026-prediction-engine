@@ -121,9 +121,15 @@ def init_db():
             goal_scorers TEXT,
             stage TEXT,
             date TEXT,
-            status TEXT
+            status TEXT,
+            cards TEXT
         )
     ''')
+    
+    try:
+        execute_write("ALTER TABLE matches ADD COLUMN cards TEXT")
+    except Exception:
+        pass
     
     execute_write('''
         CREATE TABLE IF NOT EXISTS predictions (
@@ -146,18 +152,21 @@ def init_db():
         )
     ''')
 
-def record_match(match_id, home_team, away_team, home_score, away_score, winner, goal_scorers, stage, date):
+def record_match(match_id, home_team, away_team, home_score, away_score, winner, goal_scorers, stage, date, cards=None):
+    if cards is None: cards = []
     scorers_json = json.dumps(goal_scorers)
+    cards_json = json.dumps(cards)
     execute_write('''
-        INSERT INTO matches (match_id, home_team, away_team, home_score, away_score, winner, goal_scorers, stage, date, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO matches (match_id, home_team, away_team, home_score, away_score, winner, goal_scorers, stage, date, status, cards)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(match_id) DO UPDATE SET
             home_score=excluded.home_score,
             away_score=excluded.away_score,
             winner=excluded.winner,
             goal_scorers=excluded.goal_scorers,
-            status=excluded.status
-    ''', (str(match_id), home_team, away_team, home_score, away_score, winner, scorers_json, stage, date, 'completed'))
+            status=excluded.status,
+            cards=excluded.cards
+    ''', (str(match_id), home_team, away_team, home_score, away_score, winner, scorers_json, stage, date, 'completed', cards_json))
 
 def save_prediction(match_id, pred_home_score, pred_away_score, pred_winner, prob_home, prob_draw, prob_away):
     execute_write('''

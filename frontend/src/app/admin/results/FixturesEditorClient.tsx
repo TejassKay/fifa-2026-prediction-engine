@@ -16,6 +16,7 @@ export default function FixturesEditorClient({ pendingMatches, completedMatches 
   const [winner, setWinner] = useState<Winner>('D');
   
   const [scorers, setScorers] = useState<any[]>([]);
+  const [cards, setCards] = useState<any[]>([]);
   const [squads, setSquads] = useState<{home: any[], away: any[]}>({home: [], away: []});
   const [loadingSquads, setLoadingSquads] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -46,8 +47,19 @@ export default function FixturesEditorClient({ pendingMatches, completedMatches 
         normalized = normalized.slice(0, totalGoals);
       }
       setScorers(normalized);
+      
+      let parsedCards = [];
+      if (match.cards) {
+        try {
+          parsedCards = typeof match.cards === 'string' ? JSON.parse(match.cards) : match.cards;
+        } catch (e) {
+          parsedCards = [];
+        }
+      }
+      setCards(parsedCards);
     } else {
       setScorers([]);
+      setCards([]);
     }
     
     // Fetch squads
@@ -96,7 +108,8 @@ export default function FixturesEditorClient({ pendingMatches, completedMatches 
           home_score: homeScore,
           away_score: awayScore,
           winner: winner,
-          goal_scorers: scorers
+          goal_scorers: scorers,
+          cards: cards
         })
       });
       
@@ -272,6 +285,14 @@ export default function FixturesEditorClient({ pendingMatches, completedMatches 
                         placeholder="Type player name..."
                         className="flex-1 bg-neutral-900 border border-neutral-700 text-white p-2 rounded text-sm outline-none focus:border-blue-500"
                       />
+                      <input 
+                        list={`players-${selectedMatch.match_number}`}
+                        value={s.assist_by || ''} 
+                        onChange={(e) => updateScorer(i, 'assist_by', e.target.value)}
+                        placeholder="Assist by..."
+                        className="w-32 bg-neutral-900 border border-neutral-700 text-white p-2 rounded text-sm outline-none focus:border-blue-500"
+                        disabled={s.is_own_goal}
+                      />
                       <Input 
                         placeholder="Min" 
                         type="text" 
@@ -306,6 +327,56 @@ export default function FixturesEditorClient({ pendingMatches, completedMatches 
                 </div>
               </div>
             )}
+            
+            <div className="border-t border-neutral-800 pt-4">
+              <div className="flex justify-between items-center mb-3">
+                <h4 className="font-semibold">Cards</h4>
+                <Button variant="outline" size="sm" onClick={() => setCards([...cards, { player_name: '', type: 'yellow', minute: '' }])}>+ Add Card</Button>
+              </div>
+              <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+                {cards.map((c, i) => (
+                  <div key={i} className="flex gap-2 items-center bg-neutral-950 p-2 rounded border border-neutral-800">
+                    <input 
+                      list={`players-${selectedMatch.match_number}`}
+                      value={c.player_name || ''} 
+                      onChange={(e) => {
+                        const newCards = [...cards];
+                        newCards[i].player_name = e.target.value;
+                        const isHome = squads.home.find((p: any) => p.name === e.target.value);
+                        newCards[i].team = isHome ? selectedMatch.team_a : selectedMatch.team_b;
+                        setCards(newCards);
+                      }}
+                      placeholder="Player name..."
+                      className="flex-1 bg-neutral-900 border border-neutral-700 text-white p-2 rounded text-sm outline-none focus:border-blue-500"
+                    />
+                    <select 
+                      value={c.type || 'yellow'} 
+                      onChange={(e) => {
+                        const newCards = [...cards];
+                        newCards[i].type = e.target.value;
+                        setCards(newCards);
+                      }}
+                      className="bg-neutral-900 border border-neutral-700 text-white p-2 rounded text-sm outline-none"
+                    >
+                      <option value="yellow">Yellow</option>
+                      <option value="red">Red</option>
+                    </select>
+                    <Input 
+                      placeholder="Min" 
+                      type="text" 
+                      value={c.minute || ''} 
+                      onChange={(e) => {
+                        const newCards = [...cards];
+                        newCards[i].minute = e.target.value;
+                        setCards(newCards);
+                      }} 
+                      className="w-16 bg-neutral-900 border-neutral-700 h-[38px]" 
+                    />
+                    <Button variant="ghost" size="sm" className="text-red-500" onClick={() => setCards(cards.filter((_, idx) => idx !== i))}>X</Button>
+                  </div>
+                ))}
+              </div>
+            </div>
 
             <div className="flex gap-4">
               <Button onClick={handleSave} className="flex-1 bg-blue-600 hover:bg-blue-700" disabled={saving || loadingSquads}>

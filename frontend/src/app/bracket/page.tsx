@@ -230,7 +230,7 @@ export default function BracketPage() {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-7xl mx-auto px-6">
         <h1 className="text-4xl font-black tracking-tight text-white mb-2 font-heading uppercase">Tournament Bracket</h1>
         <p className="text-neutral-400 max-w-3xl">
-          The deterministic 32-team knockout stage. Powered by XGBoost. <span className="text-emerald-400 font-bold">Drag to pan. Hover a team to trace their path.</span>
+          Live 'As It Stands' knockout stage based on current group standings. Powered by XGBoost. <span className="text-emerald-400 font-bold">Drag to pan. Hover a team to trace their path.</span>
         </p>
       </motion.div>
 

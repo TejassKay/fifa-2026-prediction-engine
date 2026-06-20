@@ -53,6 +53,12 @@ class MatchRequest(BaseModel):
     home_team: str
     away_team: str
 
+class CardEvent(BaseModel):
+    player_name: str
+    type: str
+    minute: str
+    team: Optional[str] = None
+
 class GoalScorer(BaseModel):
     player_id: Optional[str] = None
     player_name: str
@@ -60,6 +66,7 @@ class GoalScorer(BaseModel):
     team: Optional[str] = None
     is_own_goal: Optional[bool] = False
     is_penalty: Optional[bool] = False
+    assist_by: Optional[str] = None
 
 class MatchRecordRequest(BaseModel):
     match_id: str
@@ -67,6 +74,7 @@ class MatchRecordRequest(BaseModel):
     away_score: int
     winner: str
     goal_scorers: List[GoalScorer]
+    cards: Optional[List[CardEvent]] = []
 
 # In-memory storage for loaded data to avoid reloading on every request
 DATA = {}
@@ -462,25 +470,87 @@ def get_stars():
 
 @app.get("/api/golden-boot")
 def get_golden_boot():
+    completed_matches = database.get_completed_matches()
+    player_stats = defaultdict(lambda: {"goals": 0, "assists": 0, "red_cards": 0, "yellow_cards": 0})
+    
+    for m in completed_matches:
+        if m.get('goal_scorers'):
+            try:
+                scorers = json.loads(m['goal_scorers'])
+                for s in scorers:
+                    if not s.get('is_own_goal'):
+                        p_name = s.get('player_name')
+                        if p_name: player_stats[p_name]["goals"] += 1
+                    a_name = s.get('assist_by')
+                    if a_name: player_stats[a_name]["assists"] += 1
+            except Exception: pass
+            
+        if m.get('cards'):
+            try:
+                cards = json.loads(m['cards'])
+                for c in cards:
+                    p_name = c.get('player_name')
+                    c_type = c.get('type')
+                    if p_name:
+                        if c_type == 'red': player_stats[p_name]["red_cards"] += 1
+                        elif c_type == 'yellow': player_stats[p_name]["yellow_cards"] += 1
+            except Exception: pass
+            
     players = list(DATA.get("players", {}).values())
     forwards = [p for p in players if p["position"] == "FW"]
-    ranked = sorted(forwards, key=lambda x: x["form_score"] + (x["international_goals"] * 0.5), reverse=True)[:20]
+    
     results = []
-    for p in ranked:
+    for p in forwards:
         p_copy = p.copy()
+        stats = player_stats.get(p["name"], {"goals": 0, "assists": 0})
+        p_copy["tournament_goals"] = stats["goals"]
+        p_copy["tournament_assists"] = stats["assists"]
         p_copy["predicted_goals"] = max(1, min(7, round((p["form_score"] * 0.4) + (p["international_goals"] * 0.05))))
         results.append(p_copy)
+        
+    results = sorted(results, key=lambda x: (x.get("tournament_goals", 0), x.get("tournament_assists", 0), x["form_score"] + (x["international_goals"] * 0.5)), reverse=True)[:20]
     return results
 
 @app.get("/api/golden-ball")
 def get_golden_ball():
+    completed_matches = database.get_completed_matches()
+    player_stats = defaultdict(lambda: {"goals": 0, "assists": 0, "red_cards": 0, "yellow_cards": 0})
+    for m in completed_matches:
+        if m.get('goal_scorers'):
+            try:
+                scorers = json.loads(m['goal_scorers'])
+                for s in scorers:
+                    if not s.get('is_own_goal'):
+                        p_name = s.get('player_name')
+                        if p_name: player_stats[p_name]["goals"] += 1
+                    a_name = s.get('assist_by')
+                    if a_name: player_stats[a_name]["assists"] += 1
+            except Exception: pass
+        if m.get('cards'):
+            try:
+                cards = json.loads(m['cards'])
+                for c in cards:
+                    p_name = c.get('player_name')
+                    c_type = c.get('type')
+                    if p_name:
+                        if c_type == 'red': player_stats[p_name]["red_cards"] += 1
+                        elif c_type == 'yellow': player_stats[p_name]["yellow_cards"] += 1
+            except Exception: pass
+            
     players = list(DATA.get("players", {}).values())
-    ranked = sorted(players, key=lambda x: x["mvp_score"], reverse=True)[:20]
+    
     results = []
-    for p in ranked:
+    for p in players:
         p_copy = p.copy()
+        stats = player_stats.get(p["name"], {"goals": 0, "assists": 0, "red_cards": 0, "yellow_cards": 0})
+        tourney_score = (stats["goals"] * 2) + (stats["assists"] * 1.5) - (stats["red_cards"] * 3) - (stats["yellow_cards"] * 1)
+        p_copy["active_score"] = tourney_score + p["mvp_score"]
         p_copy["narrative"] = f"{p['name']} enters the tournament in elite form with a massive impact score of {p['mvp_score']:.1f}, making him the most crucial piece of {p['team']}'s tactical setup."
+        if tourney_score > 0:
+            p_copy["narrative"] += f" So far, he has {stats['goals']} goals and {stats['assists']} assists."
         results.append(p_copy)
+        
+    results = sorted(results, key=lambda x: x["active_score"], reverse=True)[:20]
     return results
 
 @app.get("/api/best-young-player")
@@ -600,9 +670,35 @@ def get_bracket():
         if not groups:
             return {}
         import knockout_resolver
+        standings, _ = knockout_resolver.get_standings()
         live_schedule = knockout_resolver.resolve_standings()
+        
+        new_groups = []
+        for g in groups:
+            grp_name = g["group"]
+            teams = g["teams"]
+            sorted_teams = []
+            for t in teams:
+                s = standings.get(grp_name, {}).get(t["team"], {})
+                t_copy = dict(t)
+                t_copy["pts"] = s.get("pts", 0)
+                t_copy["gd"] = s.get("gd", 0)
+                t_copy["gf"] = s.get("gf", 0)
+                t_copy["red_cards"] = s.get("red_cards", 0)
+                t_copy["yellow_cards"] = s.get("yellow_cards", 0)
+                sorted_teams.append(t_copy)
+                
+            def sort_key(t):
+                return (t["pts"], t["gd"], t["gf"], -t.get("red_cards", 0), -t.get("yellow_cards", 0), t.get("prob", 0))
+            
+            sorted_teams = sorted(sorted_teams, key=sort_key, reverse=True)
+            new_groups.append({
+                "group": grp_name,
+                "teams": sorted_teams
+            })
+            
         from bracket_engine import build_bracket
-        return build_bracket(groups, DATA.get("lambda_lookup", {}), DATA.get("champions", []), live_schedule)
+        return build_bracket(new_groups, DATA.get("lambda_lookup", {}), DATA.get("champions", []), live_schedule)
     except Exception as e:
         import traceback
         from fastapi import Response
@@ -987,7 +1083,8 @@ def record_match_result(req: MatchRecordRequest, background_tasks: BackgroundTas
         winner=req.winner,
         goal_scorers=[s.dict() for s in req.goal_scorers],
         stage=m['stage'],
-        date=m['date']
+        date=m['date'],
+        cards=[c.dict() for c in req.cards] if req.cards else []
     )
     
     # Reload schedule to reflect updated brackets
@@ -1259,9 +1356,14 @@ def get_full_schedule():
             c["away_score"] = db_m["away_score"]
             c["status"] = "completed"
             try:
-                c["goal_scorers"] = json.loads(db_m["goal_scorers"]) if db_m["goal_scorers"] else []
+                c["goal_scorers"] = json.loads(db_m.get("goal_scorers") or "[]")
             except Exception:
                 c["goal_scorers"] = []
+                
+            try:
+                c["cards"] = json.loads(db_m.get("cards") or "[]")
+            except Exception:
+                c["cards"] = []
                 
         cleaned_schedule.append(c)
         

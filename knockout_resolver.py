@@ -9,7 +9,9 @@ def get_standings():
     groups = df_wc[df_wc['status'] == 'confirmed_group_fixture'].groupby('group')
     group_teams = {name: set(g['team_a']).union(set(g['team_b'])) for name, g in groups}
     
-    standings = {g: {t: {'pts':0, 'gd':0, 'gf':0, 'ga':0, 'played':0, 'w':0, 'd':0, 'l':0} for t in teams} for g, teams in group_teams.items()}
+    standings = {g: {t: {'pts':0, 'gd':0, 'gf':0, 'ga':0, 'played':0, 'w':0, 'd':0, 'l':0, 'yellow_cards':0, 'red_cards':0} for t in teams} for g, teams in group_teams.items()}
+    
+    import json
     
     for m in completed:
         if m['stage'] == 'Group Stage':
@@ -47,6 +49,18 @@ def get_standings():
                     standings[g][ht]['d'] += 1
                     standings[g][at]['d'] += 1
                     
+                try:
+                    if m.get('cards'):
+                        cards = json.loads(m['cards'])
+                        for c in cards:
+                            c_team = c.get('team')
+                            c_type = c.get('type')
+                            if c_team and c_team in standings[g]:
+                                if c_type == 'yellow': standings[g][c_team]['yellow_cards'] += 1
+                                elif c_type == 'red': standings[g][c_team]['red_cards'] += 1
+                except Exception:
+                    pass
+                    
     return standings, group_teams
 
 def resolve_standings():
@@ -64,7 +78,7 @@ def resolve_standings():
         # Each team plays 3 matches -> 12 total "played" increments per group
         if sum(t['played'] for t in teams_stats.values()) == 12:
             groups_finished += 1
-            sorted_teams = sorted(teams_stats.items(), key=lambda x: (x[1]['pts'], x[1]['gd'], x[1]['gf']), reverse=True)
+            sorted_teams = sorted(teams_stats.items(), key=lambda x: (x[1]['pts'], x[1]['gd'], x[1]['gf'], -x[1]['red_cards'], -x[1]['yellow_cards']), reverse=True)
             resolved[f"Group {g} Winner"] = sorted_teams[0][0]
             resolved[f"Group {g} Runner-up"] = sorted_teams[1][0]
             thirds.append({'team': sorted_teams[2][0], 'pts': sorted_teams[2][1]['pts'], 'gd': sorted_teams[2][1]['gd'], 'gf': sorted_teams[2][1]['gf']})
