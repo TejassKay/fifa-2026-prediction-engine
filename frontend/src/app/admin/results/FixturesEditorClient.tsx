@@ -123,10 +123,11 @@ export default function FixturesEditorClient({ pendingMatches, completedMatches 
         setSelectedMatch(null);
         router.refresh();
       } else {
-        alert('Failed to save');
+        const errText = await res.text();
+        alert(`Failed to save (v2): ${res.status} ${res.statusText} - ${errText}`);
       }
-    } catch (e) {
-      alert('Error saving');
+    } catch (e: any) {
+      alert(`Error saving (v2): ${e.message}`);
     }
     setSaving(false);
   };
