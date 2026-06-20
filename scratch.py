@@ -1,6 +1,20 @@
+import requests
 import json
 
-with open("data/schedule.json") as f:
-    data = json.load(f)
-    print("Match 1 time_local:", data[0].get("time_local"))
+payload = {
+    "match_id": "1",
+    "home_score": "2",
+    "away_score": "1",
+    "winner": "H",
+    "goal_scorers": [
+        {"player_name": "", "minute": ""}
+    ],
+    "cards": []
+}
 
+try:
+    r = requests.post('https://www.fifawc26hub.com/api/matches/record', json=payload)
+    print(r.status_code)
+    print(r.text)
+except Exception as e:
+    print(e)

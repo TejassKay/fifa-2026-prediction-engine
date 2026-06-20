@@ -105,11 +105,11 @@ export default function FixturesEditorClient({ pendingMatches, completedMatches 
         },
         body: JSON.stringify({
           match_id: selectedMatch.match_number.toString(),
-          home_score: homeScore,
-          away_score: awayScore,
+          home_score: parseInt(homeScore),
+          away_score: parseInt(awayScore),
           winner: winner,
-          goal_scorers: scorers,
-          cards: cards
+          goal_scorers: scorers.filter((s: any) => s.player_name && s.player_name.trim() !== ''),
+          cards: cards.filter((c: any) => c.player_name && c.player_name.trim() !== '')
         })
       });
       
@@ -284,6 +284,14 @@ export default function FixturesEditorClient({ pendingMatches, completedMatches 
                         onChange={(e) => updateScorer(i, 'player_name', e.target.value)}
                         placeholder="Player name..."
                         className="flex-1 min-w-[120px] bg-neutral-900 border border-neutral-700 text-white p-2 rounded text-sm outline-none focus:border-blue-500"
+                      />
+                      <input 
+                        type="number"
+                        value={s.minute || ''} 
+                        onChange={(e) => updateScorer(i, 'minute', e.target.value)}
+                        placeholder="Min"
+                        className="w-16 bg-neutral-900 border border-neutral-700 text-white p-2 rounded text-sm outline-none focus:border-blue-500"
+                        min="1" max="120"
                       />
                       <input 
                         list={`players-${selectedMatch.match_number}`}
