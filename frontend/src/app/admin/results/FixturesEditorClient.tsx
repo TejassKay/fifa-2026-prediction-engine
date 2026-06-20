@@ -320,7 +320,8 @@ export default function FixturesEditorClient({ pendingMatches, completedMatches 
                         PEN
                       </label>
                     </div>
-                  ))}
+                  </div>
+                ))}
                   <datalist id={`players-${selectedMatch.match_number}`}>
                     {squads.home.map(p => <option key={`h-${p.name}`} value={p.name}>{p.name} ({p.position})</option>)}
                     {squads.away.map(p => <option key={`a-${p.name}`} value={p.name}>{p.name} ({p.position})</option>)}
