@@ -276,30 +276,31 @@ export default function FixturesEditorClient({ pendingMatches, completedMatches 
                 <h4 className="font-semibold mb-3">Goal Scorers</h4>
                 <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
                   {scorers.map((s, i) => (
-                    <div key={i} className="flex gap-2 items-center bg-neutral-950 p-2 rounded border border-neutral-800">
+                    <div key={i} className="flex flex-wrap md:flex-nowrap gap-2 items-center bg-neutral-950 p-2 rounded border border-neutral-800">
                       <span className="text-neutral-500 text-sm w-6 text-center">{i + 1}.</span>
                       <input 
                         list={`players-${selectedMatch.match_number}`}
                         value={s.player_name || ''} 
                         onChange={(e) => updateScorer(i, 'player_name', e.target.value)}
-                        placeholder="Type player name..."
-                        className="flex-1 bg-neutral-900 border border-neutral-700 text-white p-2 rounded text-sm outline-none focus:border-blue-500"
+                        placeholder="Player name..."
+                        className="flex-1 min-w-[120px] bg-neutral-900 border border-neutral-700 text-white p-2 rounded text-sm outline-none focus:border-blue-500"
                       />
                       <input 
                         list={`players-${selectedMatch.match_number}`}
                         value={s.assist_by || ''} 
                         onChange={(e) => updateScorer(i, 'assist_by', e.target.value)}
                         placeholder="Assist by..."
-                        className="w-32 bg-neutral-900 border border-neutral-700 text-white p-2 rounded text-sm outline-none focus:border-blue-500"
+                        className="w-28 bg-neutral-900 border border-neutral-700 text-white p-2 rounded text-sm outline-none focus:border-blue-500"
                         disabled={s.is_own_goal}
                       />
-                      <Input 
-                        placeholder="Min" 
-                        type="text" 
-                        value={s.minute || ''} 
-                        onChange={(e) => updateScorer(i, 'minute', e.target.value)} 
-                        className="w-16 bg-neutral-900 border-neutral-700 h-[38px]" 
-                      />
+                      <div className="flex items-center gap-2">
+                        <Input 
+                          placeholder="Min" 
+                          type="text" 
+                          value={s.minute || ''} 
+                          onChange={(e) => updateScorer(i, 'minute', e.target.value)} 
+                          className="w-16 bg-neutral-900 border-neutral-700 h-[38px] text-center" 
+                        />
                       <label className="flex items-center gap-1 text-xs text-neutral-400 cursor-pointer">
                         <input 
                           type="checkbox" 
