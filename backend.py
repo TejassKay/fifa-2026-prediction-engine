@@ -1354,6 +1354,7 @@ def get_full_schedule():
             db_m = completed_db[m_id]
             c["home_score"] = db_m["home_score"]
             c["away_score"] = db_m["away_score"]
+            c["winner"] = db_m.get("winner", "D")
             c["status"] = "completed"
             try:
                 c["goal_scorers"] = json.loads(db_m.get("goal_scorers") or "[]")

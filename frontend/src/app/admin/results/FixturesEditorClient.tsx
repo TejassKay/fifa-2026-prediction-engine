@@ -26,7 +26,7 @@ export default function FixturesEditorClient({ pendingMatches, completedMatches 
     setSelectedMatch(match);
     setHomeScore(match.status === 'completed' && match.home_score !== null ? match.home_score : '');
     setAwayScore(match.status === 'completed' && match.away_score !== null ? match.away_score : '');
-    setWinner(match.status === 'completed' ? match.winner : 'D');
+    setWinner(match.status === 'completed' && match.winner ? match.winner : 'D');
     
     // Parse goal scorers if editing a completed match
     if (match.status === 'completed') {
@@ -107,7 +107,7 @@ export default function FixturesEditorClient({ pendingMatches, completedMatches 
           match_id: selectedMatch.match_number.toString(),
           home_score: Number(homeScore),
           away_score: Number(awayScore),
-          winner: winner,
+          winner: winner || 'D',
           goal_scorers: scorers.filter((s: any) => s.player_name && s.player_name.trim() !== '').map((s: any) => ({
             ...s,
             minute: s.minute ? String(s.minute) : ''
