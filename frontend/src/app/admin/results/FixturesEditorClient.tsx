@@ -105,8 +105,8 @@ export default function FixturesEditorClient({ pendingMatches, completedMatches 
         },
         body: JSON.stringify({
           match_id: selectedMatch.match_number.toString(),
-          home_score: parseInt(homeScore),
-          away_score: parseInt(awayScore),
+          home_score: Number(homeScore),
+          away_score: Number(awayScore),
           winner: winner,
           goal_scorers: scorers.filter((s: any) => s.player_name && s.player_name.trim() !== ''),
           cards: cards.filter((c: any) => c.player_name && c.player_name.trim() !== '')
