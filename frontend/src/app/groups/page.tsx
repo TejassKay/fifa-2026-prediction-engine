@@ -204,6 +204,81 @@ export default function GroupsPage() {
           </motion.div>
         ))}
       </div>
+
+      {/* 3rd Place Race */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
+        <div className="glass-panel p-6 mt-12 overflow-hidden relative border-white/5">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/5 rounded-full blur-[100px] pointer-events-none" />
+          
+          <h2 className="text-3xl font-black uppercase font-heading mb-2 text-white tracking-widest relative z-10">
+            3rd Place Race
+          </h2>
+          <p className="text-neutral-400 text-sm mb-8 max-w-2xl relative z-10">
+            The top 8 third-placed teams across all 12 groups advance to the Round of 32. 
+            {viewMode === 'standings' ? ' Ranked by Points, Goal Difference, then Goals Scored.' : ' Ranked by XGBoost advance probability.'}
+          </p>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-3 relative z-10">
+            {/* Compute 3rd placed teams */}
+            {(() => {
+              const thirds = activeData.map(g => ({ ...g.teams[2], sourceGroup: g.group }));
+              if (viewMode === 'standings') {
+                thirds.sort((a, b) => {
+                  if ((b.pts || 0) !== (a.pts || 0)) return (b.pts || 0) - (a.pts || 0);
+                  if ((b.gd || 0) !== (a.gd || 0)) return (b.gd || 0) - (a.gd || 0);
+                  return (b.gf || 0) - (a.gf || 0);
+                });
+              } else {
+                thirds.sort((a, b) => (b.prob || 0) - (a.prob || 0));
+              }
+
+              return thirds.map((t: any, i: number) => {
+                const gradient = getFlagGradientByName(t.team);
+                const isAdvancing = i < 8;
+                return (
+                  <div 
+                    key={t.team} 
+                    className={`group relative flex items-center justify-between p-3 rounded-xl overflow-hidden cursor-default transition-all duration-300 ${isAdvancing ? 'bg-white/5 border border-white/10' : 'bg-red-500/5 border border-red-500/10 opacity-75'}`}
+                  >
+                    <div className={`absolute inset-0 bg-gradient-to-r ${gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-300 pointer-events-none`} />
+                    
+                    <div className="flex items-center gap-4 w-[50%]">
+                      <span className={`text-sm font-black w-4 shrink-0 text-center ${isAdvancing ? 'text-emerald-400' : 'text-rose-500'}`}>{i + 1}</span>
+                      <img src={getFlagUrl(t.team)} className="w-8 h-6 object-cover rounded shadow-sm border border-white/10 shrink-0" />
+                      <div className="flex flex-col">
+                        <span className="font-bold text-white uppercase tracking-wide text-sm truncate">{t.team}</span>
+                        <span className="text-[10px] text-neutral-500 font-bold uppercase tracking-widest">Grp {t.sourceGroup}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-end w-[50%]">
+                      {viewMode === 'forecast' ? (
+                        <div className="flex items-center gap-4">
+                          <span className="text-xs font-mono text-neutral-400 w-10 text-right">{Math.round(t.elo || 0)}</span>
+                          <div className="flex flex-col items-end justify-center w-[60px]">
+                            <span className={`font-mono font-bold text-xs ${isAdvancing ? 'text-emerald-400' : 'text-rose-400'}`}>
+                              {((t.prob || 0) * 100).toFixed(1)}%
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between flex-1 pl-4 max-w-[200px]">
+                          <span className="text-xs font-mono text-neutral-400 w-6 text-center">{t.played ?? 0}</span>
+                          <span className="text-xs font-mono text-neutral-500 w-6 text-center hidden sm:block">{t.w ?? 0}</span>
+                          <span className="text-xs font-mono text-neutral-500 w-6 text-center hidden sm:block">{t.d ?? 0}</span>
+                          <span className="text-xs font-mono text-neutral-500 w-6 text-center hidden sm:block">{t.l ?? 0}</span>
+                          <span className="text-sm font-mono text-neutral-300 w-8 text-center">{((t.gd ?? 0) > 0 ? '+' : '') + (t.gd ?? 0)}</span>
+                          <span className="text-base font-black text-white w-8 text-center">{t.pts ?? 0}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 }
