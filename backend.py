@@ -1063,28 +1063,31 @@ def record_match_result(req: MatchRecordRequest, background_tasks: BackgroundTas
         
     m = match_row.iloc[0]
     
-    # Generate and save the prediction before recording the match
-    req_pred = MatchRequest(home_team=m['team_a'], away_team=m['team_b'])
-    pred_data = predict_match(req_pred)
-    top_score = pred_data["top_scorelines"][0]["score"].split("-")
-    
-    probs = pred_data["probabilities"]
-    if probs["home_win"] > probs["away_win"] and probs["home_win"] > probs["draw"]:
-        pred_winner = "H"
-    elif probs["away_win"] > probs["home_win"] and probs["away_win"] > probs["draw"]:
-        pred_winner = "A"
-    else:
-        pred_winner = "D"
+    # Generate and save the prediction ONLY if it doesn't already exist
+    # This prevents overwriting historical predictions when updating old scorecards
+    existing_preds = database.get_predictions()
+    if str(req.match_id) not in existing_preds:
+        req_pred = MatchRequest(home_team=m['team_a'], away_team=m['team_b'])
+        pred_data = predict_match(req_pred)
+        top_score = pred_data["top_scorelines"][0]["score"].split("-")
         
-    database.save_prediction(
-        str(req.match_id),
-        int(top_score[0]),
-        int(top_score[1]),
-        pred_winner,
-        probs["home_win"],
-        probs["draw"],
-        probs["away_win"]
-    )
+        probs = pred_data["probabilities"]
+        if probs["home_win"] > probs["away_win"] and probs["home_win"] > probs["draw"]:
+            pred_winner = "H"
+        elif probs["away_win"] > probs["home_win"] and probs["away_win"] > probs["draw"]:
+            pred_winner = "A"
+        else:
+            pred_winner = "D"
+            
+        database.save_prediction(
+            str(req.match_id),
+            int(top_score[0]),
+            int(top_score[1]),
+            pred_winner,
+            probs["home_win"],
+            probs["draw"],
+            probs["away_win"]
+        )
 
     database.record_match(
         match_id=str(req.match_id),
