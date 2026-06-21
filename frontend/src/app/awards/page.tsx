@@ -102,8 +102,8 @@ export default function AwardsCenter() {
               <h3 className="text-3xl md:text-4xl font-black text-white uppercase tracking-tighter leading-none mb-6 font-heading drop-shadow-md">{item.p.name}</h3>
               <div className="flex items-center justify-between border-t border-white/20 pt-4">
                 <div>
-                  <div className="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">{type === 'goals' ? 'Predicted Goals' : 'Impact Score'}</div>
-                  <div className="text-3xl font-black text-white">{type === 'goals' ? item.p.predicted_goals : item.p.mvp_score.toFixed(1)}</div>
+                  <div className="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">{type === 'goals' ? 'Predicted Goals' : 'Active Score'}</div>
+                  <div className="text-3xl font-black text-white">{type === 'goals' ? item.p.predicted_goals : (item.p.active_score !== undefined ? item.p.active_score.toFixed(1) : item.p.mvp_score.toFixed(1))}</div>
                 </div>
                 <div className="text-right">
                   <div className="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">Form</div>

@@ -74,7 +74,12 @@ def get_connection():
         finally:
             conn.close()
 
+import time
+_query_cache = {}
+
 def execute_write(query, params=None):
+    global _query_cache
+    _query_cache.clear()
     with get_connection() as (conn, db_type):
         c = conn.cursor()
         try:
@@ -180,9 +185,6 @@ def save_prediction(match_id, pred_home_score, pred_away_score, pred_winner, pro
             pred_prob_draw=excluded.pred_prob_draw,
             pred_prob_away=excluded.pred_prob_away
     ''', (str(match_id), pred_home_score, pred_away_score, pred_winner, prob_home, prob_draw, prob_away))
-
-import time
-_query_cache = {}
 
 def _cached_execute_read(query, ttl=60):
     now = time.time()
