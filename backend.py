@@ -682,28 +682,24 @@ def get_bracket():
         if not groups:
             return {}
         import knockout_resolver
-        standings, _ = knockout_resolver.get_standings()
+        standings, _, completed_matches = knockout_resolver.get_standings()
         live_schedule = knockout_resolver.resolve_standings()
         
         new_groups = []
         for g in groups:
             grp_name = g["group"]
-            teams = g["teams"]
-            sorted_teams = []
-            for t in teams:
-                s = standings.get(grp_name, {}).get(t["team"], {})
-                t_copy = dict(t)
-                t_copy["pts"] = s.get("pts", 0)
-                t_copy["gd"] = s.get("gd", 0)
-                t_copy["gf"] = s.get("gf", 0)
-                t_copy["red_cards"] = s.get("red_cards", 0)
-                t_copy["yellow_cards"] = s.get("yellow_cards", 0)
-                sorted_teams.append(t_copy)
+            teams_stats = standings.get(grp_name, {})
+            if teams_stats:
+                sorted_teams_tuples = knockout_resolver.sort_tied_teams(teams_stats, completed_matches)
+                sorted_teams = []
+                for t_name, stats in sorted_teams_tuples:
+                    t_orig = next((t for t in g["teams"] if t["team"] == t_name), {"team": t_name})
+                    t_copy = dict(t_orig)
+                    t_copy.update(stats)
+                    sorted_teams.append(t_copy)
+            else:
+                sorted_teams = list(g["teams"])
                 
-            def sort_key(t):
-                return (t["pts"], t["gd"], t["gf"], -t.get("red_cards", 0), -t.get("yellow_cards", 0), t.get("prob", 0))
-            
-            sorted_teams = sorted(sorted_teams, key=sort_key, reverse=True)
             new_groups.append({
                 "group": grp_name,
                 "teams": sorted_teams
@@ -719,12 +715,13 @@ def get_bracket():
 @app.get("/api/standings")
 def api_get_standings():
     import knockout_resolver
-    standings, _ = knockout_resolver.get_standings()
+    standings, _, completed_matches = knockout_resolver.get_standings()
     # Format the dictionary into an array of objects for easier frontend consumption
     result = []
-    for g, teams in standings.items():
+    for g, teams_stats in standings.items():
+        sorted_teams = knockout_resolver.sort_tied_teams(teams_stats, completed_matches)
         team_list = []
-        for team_name, stats in teams.items():
+        for team_name, stats in sorted_teams:
             team_list.append({
                 "team": team_name,
                 "played": stats["played"],
@@ -736,8 +733,6 @@ def api_get_standings():
                 "gd": stats["gd"],
                 "pts": stats["pts"]
             })
-        # Sort by points, then gd, then gf
-        team_list.sort(key=lambda x: (x["pts"], x["gd"], x["gf"]), reverse=True)
         result.append({"group": g, "teams": team_list})
     
     # Sort groups A-L
