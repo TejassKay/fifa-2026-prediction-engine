@@ -1037,7 +1037,7 @@ def get_finals():
     left_pool = set()
     right_pool = set()
     
-    if "r32" in bracket and len(bracket["r32"]) == 16:
+    if isinstance(bracket, dict) and "r32" in bracket and len(bracket["r32"]) == 16:
         for i in range(8):
             m = bracket["r32"][i]
             left_pool.add(m.get("home"))
