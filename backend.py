@@ -1031,12 +1031,36 @@ def get_upsets():
 def get_finals():
     champs = DATA.get("champions", [])
     finals = []
-    top_teams = sorted(champs, key=lambda x: x["final_probability"], reverse=True)[:15]
+    
+    # Extract left and right pools from the bracket API
+    bracket = get_bracket()
+    left_pool = set()
+    right_pool = set()
+    
+    if "r32" in bracket and len(bracket["r32"]) == 16:
+        for i in range(8):
+            m = bracket["r32"][i]
+            left_pool.add(m.get("home"))
+            left_pool.add(m.get("away"))
+        for i in range(8, 16):
+            m = bracket["r32"][i]
+            right_pool.add(m.get("home"))
+            right_pool.add(m.get("away"))
+            
+    use_pools = len(left_pool) > 0 and len(right_pool) > 0
+    top_teams = sorted(champs, key=lambda x: x["final_probability"], reverse=True)
     
     for i in range(len(top_teams)):
         for j in range(i+1, len(top_teams)):
             t1 = top_teams[i]
             t2 = top_teams[j]
+            
+            if use_pools:
+                can_meet = (t1["team"] in left_pool and t2["team"] in right_pool) or \
+                           (t1["team"] in right_pool and t2["team"] in left_pool)
+                if not can_meet:
+                    continue
+                    
             prob = t1["final_probability"] * t2["final_probability"] * 2 
             finals.append({
                 "team_a": t1["team"],
