@@ -96,12 +96,24 @@ def reload_csv_data():
         if "groups" not in DATA:
             DATA["groups"] = []
 
+import threading
+import gc
+simulation_lock = threading.Lock()
+
 def run_and_reload():
-    from monte_carlo_simulator import main as run_simulator
-    print("Running background simulation...")
-    run_simulator()
-    print("Reloading CSV data into memory...")
-    reload_csv_data()
+    if not simulation_lock.acquire(blocking=False):
+        print("Simulation already running. Skipping this trigger to conserve memory.")
+        return
+        
+    try:
+        from monte_carlo_simulator import main as run_simulator
+        print("Running background simulation...")
+        run_simulator()
+        print("Reloading CSV data into memory...")
+        reload_csv_data()
+    finally:
+        gc.collect()
+        simulation_lock.release()
 
 @app.on_event("startup")
 def load_data():
