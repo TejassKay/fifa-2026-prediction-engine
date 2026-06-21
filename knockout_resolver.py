@@ -61,13 +61,93 @@ def get_standings():
                 except Exception:
                     pass
                     
-    return standings, group_teams
+    return standings, group_teams, completed
+
+import os
+_fifa_rank_cache = {}
+
+def get_fifa_rank(team_name):
+    global _fifa_rank_cache
+    if not _fifa_rank_cache:
+        try:
+            df_ranks = pd.read_csv("Dataset/fifa_mens_rank.csv")
+            for _, row in df_ranks.iterrows():
+                _fifa_rank_cache[row['team']] = int(row['rank'])
+        except Exception:
+            pass
+    return _fifa_rank_cache.get(team_name, 999)
+
+def get_fair_play_pts(stats):
+    return -(stats.get('yellow_cards', 0) * 1 + stats.get('red_cards', 0) * 4)
+
+def get_h2h_stats(team, tied_teams, completed_matches):
+    h2h_pts = 0
+    h2h_gd = 0
+    h2h_gf = 0
+    for m in completed_matches:
+        if m['stage'] == 'Group Stage':
+            ht, at = m['home_team'], m['away_team']
+            if ht in tied_teams and at in tied_teams:
+                hs, as_ = m['home_score'], m['away_score']
+                if ht == team:
+                    h2h_gf += hs
+                    h2h_gd += (hs - as_)
+                    if hs > as_: h2h_pts += 3
+                    elif hs == as_: h2h_pts += 1
+                elif at == team:
+                    h2h_gf += as_
+                    h2h_gd += (as_ - hs)
+                    if as_ > hs: h2h_pts += 3
+                    elif hs == as_: h2h_pts += 1
+    return h2h_pts, h2h_gd, h2h_gf
+
+def sort_tied_teams(teams_stats, completed_matches):
+    # teams_stats is a dict of {team_name: stats}
+    # Group teams by overall points
+    from collections import defaultdict
+    pts_groups = defaultdict(list)
+    for team, stats in teams_stats.items():
+        pts_groups[stats['pts']].append(team)
+        
+    sorted_teams = []
+    # Sort points descending
+    for pts in sorted(pts_groups.keys(), reverse=True):
+        tied_teams = pts_groups[pts]
+        
+        if len(tied_teams) == 1:
+            sorted_teams.append((tied_teams[0], teams_stats[tied_teams[0]]))
+        else:
+            # We have tied teams, sort them using Phase 1-4 tiebreakers
+            def sort_key(team):
+                stats = teams_stats[team]
+                h2h_pts, h2h_gd, h2h_gf = get_h2h_stats(team, set(tied_teams), completed_matches)
+                overall_gd = stats['gd']
+                overall_gf = stats['gf']
+                fair_play = get_fair_play_pts(stats)
+                fifa_rank = get_fifa_rank(team)
+                
+                return (
+                    h2h_pts,
+                    h2h_gd,
+                    h2h_gf,
+                    overall_gd,
+                    overall_gf,
+                    fair_play,
+                    -fifa_rank # Lower rank is better
+                )
+                
+            # Sort the tied teams
+            tied_sorted = sorted(tied_teams, key=sort_key, reverse=True)
+            for t in tied_sorted:
+                sorted_teams.append((t, teams_stats[t]))
+                
+    return sorted_teams
 
 def resolve_standings():
     df_wc = pd.read_csv("Dataset/world-cup-2026-schedule.csv")
     completed = database.get_completed_matches()
     
-    standings, group_teams = get_standings()
+    standings, group_teams, completed_group_matches = get_standings()
                     
     # 3. Resolve Placements
     resolved = {}
@@ -78,7 +158,7 @@ def resolve_standings():
         # Each team plays 3 matches -> 12 total "played" increments per group
         if sum(t['played'] for t in teams_stats.values()) == 12:
             groups_finished += 1
-            sorted_teams = sorted(teams_stats.items(), key=lambda x: (x[1]['pts'], x[1]['gd'], x[1]['gf'], -x[1]['red_cards'], -x[1]['yellow_cards']), reverse=True)
+            sorted_teams = sort_tied_teams(teams_stats, completed_group_matches)
             resolved[f"Group {g} Winner"] = sorted_teams[0][0]
             resolved[f"Group {g} Runner-up"] = sorted_teams[1][0]
             thirds.append({'team': sorted_teams[2][0], 'pts': sorted_teams[2][1]['pts'], 'gd': sorted_teams[2][1]['gd'], 'gf': sorted_teams[2][1]['gf']})
