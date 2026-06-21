@@ -43,30 +43,30 @@ def build_bracket(groups_data, lambda_lookup, champs, live_schedule=None):
             return unassigned_thirds.pop(0)["team"]
         return "TBD"
 
-    # Define the 16 R32 matches
-    m_L1 = (firsts.get("A", "1A"), pop_third(["C", "E", "F", "H", "I"])) # M79
-    m_L2 = (firsts.get("F", "1F"), seconds.get("C", "2C"))               # M76
-    m_L3 = (firsts.get("E", "1E"), pop_third(["A", "B", "C", "D", "F"])) # M75
-    m_L4 = (seconds.get("A", "2A"), seconds.get("B", "2B"))              # M73
-    m_L5 = (firsts.get("I", "1I"), pop_third(["C", "D", "F", "G", "H"])) # M78
-    m_L6 = (seconds.get("E", "2E"), seconds.get("I", "2I"))              # M77
-    m_L7 = (firsts.get("G", "1G"), pop_third(["A", "E", "H", "I", "J"])) # M81
-    m_L8 = (firsts.get("D", "1D"), pop_third(["B", "E", "F", "I", "J"])) # M82
+    # Define the 16 R32 matches according to CSV
+    m_L1 = (seconds.get("A", "2A"), seconds.get("B", "2B"))              # M73
+    m_L2 = (firsts.get("E", "1E"), pop_third(["A", "B", "C", "D", "F"])) # M74
+    m_L3 = (firsts.get("F", "1F"), seconds.get("C", "2C"))               # M75
+    m_L4 = (firsts.get("C", "1C"), seconds.get("F", "2F"))               # M76
+    m_L5 = (firsts.get("I", "1I"), pop_third(["C", "D", "F", "G", "H"])) # M77
+    m_L6 = (seconds.get("E", "2E"), seconds.get("I", "2I"))              # M78
+    m_L7 = (firsts.get("A", "1A"), pop_third(["C", "E", "F", "H", "I"])) # M79
+    m_L8 = (firsts.get("L", "1L"), pop_third(["E", "H", "I", "J", "K"])) # M80
 
-    m_R1 = (firsts.get("B", "1B"), pop_third(["E", "F", "G", "I", "J"])) # M85
-    m_R2 = (firsts.get("C", "1C"), seconds.get("F", "2F"))               # M74
-    m_R3 = (firsts.get("H", "1H"), seconds.get("J", "2J"))               # M83
-    m_R4 = (firsts.get("J", "1J"), seconds.get("H", "2H"))               # M87
-    m_R5 = (firsts.get("K", "1K"), pop_third(["D", "E", "I", "J", "L"])) # M88
-    m_R6 = (firsts.get("L", "1L"), pop_third(["E", "H", "I", "J", "K"])) # M80
-    m_R7 = (seconds.get("K", "2K"), seconds.get("L", "2L"))              # M84
-    m_R8 = (seconds.get("D", "2D"), seconds.get("G", "2G"))              # M86
+    m_R1 = (firsts.get("D", "1D"), pop_third(["B", "E", "F", "I", "J"])) # M81
+    m_R2 = (firsts.get("G", "1G"), pop_third(["A", "E", "H", "I", "J"])) # M82
+    m_R3 = (seconds.get("K", "2K"), seconds.get("L", "2L"))              # M83
+    m_R4 = (firsts.get("H", "1H"), seconds.get("J", "2J"))               # M84
+    m_R5 = (firsts.get("B", "1B"), pop_third(["E", "F", "G", "I", "J"])) # M85
+    m_R6 = (firsts.get("J", "1J"), seconds.get("H", "2H"))               # M86
+    m_R7 = (firsts.get("K", "1K"), pop_third(["D", "E", "I", "J", "L"])) # M87
+    m_R8 = (seconds.get("D", "2D"), seconds.get("G", "2G"))              # M88
 
     r32_mapping = {
-        79: m_L1, 76: m_L2, 75: m_L3, 73: m_L4,
-        78: m_L5, 77: m_L6, 81: m_L7, 82: m_L8,
-        85: m_R1, 74: m_R2, 83: m_R3, 87: m_R4,
-        88: m_R5, 80: m_R6, 84: m_R7, 86: m_R8
+        73: m_L1, 74: m_L2, 75: m_L3, 76: m_L4,
+        77: m_L5, 78: m_L6, 79: m_L7, 80: m_L8,
+        81: m_R1, 82: m_R2, 83: m_R3, 84: m_R4,
+        85: m_R5, 86: m_R6, 87: m_R7, 88: m_R8
     }
 
     live_dict = {m['match_number']: m for m in live_schedule}
@@ -77,7 +77,7 @@ def build_bracket(groups_data, lambda_lookup, champs, live_schedule=None):
         return not any(x in t_str for x in ["Winner", "Runner-up", "3rd Place", "TBD", "Match"])
 
     hybrid_r32 = []
-    r32_order = [79, 76, 75, 73, 78, 77, 81, 82, 85, 74, 83, 87, 88, 80, 84, 86]
+    r32_order = [74, 77, 73, 75, 83, 84, 81, 82, 76, 78, 79, 80, 86, 88, 85, 87]
     
     for m_num in r32_order:
         pred_a, pred_b = r32_mapping[m_num]
@@ -139,7 +139,7 @@ def build_bracket(groups_data, lambda_lookup, champs, live_schedule=None):
         r16_teams.append(res["winner"])
         
     # Simulate R16
-    r16_order = [89, 90, 91, 92, 93, 94, 95, 96]
+    r16_order = [89, 90, 93, 94, 91, 92, 95, 96]
     qf_teams = []
     for i in range(0, 16, 2):
         m_num = r16_order[i//2]

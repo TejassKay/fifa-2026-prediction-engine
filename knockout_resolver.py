@@ -169,9 +169,16 @@ def resolve_standings():
         best_thirds = [t['team'] for t in thirds[:8]]
         
         # Simplified third place assignment
-        tba_thirds = ["Group A/B/C/D/F 3rd Place", "Group C/D/F/G/H 3rd Place", "Group C/D/E/F/I/J 3rd Place", 
-                     "Group E/F/G/H/I/J 3rd Place", "Group A/B/C/D/E/F 3rd Place", "Group G/H/I/J/K/L 3rd Place",
-                     "Group E/F/G/H/I/L 3rd Place", "Group A/B/C/D/K/L 3rd Place"]
+        tba_thirds = [
+            "Group A/B/C/D/F 3rd Place",
+            "Group C/D/F/G/H 3rd Place",
+            "Group C/E/F/H/I 3rd Place",
+            "Group E/H/I/J/K 3rd Place",
+            "Group B/E/F/I/J 3rd Place",
+            "Group A/E/H/I/J 3rd Place",
+            "Group E/F/G/I/J 3rd Place",
+            "Group D/E/I/J/L 3rd Place"
+        ]
         
         for i, tba_str in enumerate(tba_thirds):
             if i < len(best_thirds):
