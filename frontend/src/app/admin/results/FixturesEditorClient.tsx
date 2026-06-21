@@ -329,13 +329,15 @@ export default function FixturesEditorClient({ pendingMatches, completedMatches 
                     </div>
                   </div>
                 ))}
-                  <datalist id={`players-${selectedMatch.match_number}`}>
-                    {squads.home.map(p => <option key={`h-${p.name}`} value={p.name}>{p.name} ({p.position})</option>)}
-                    {squads.away.map(p => <option key={`a-${p.name}`} value={p.name}>{p.name} ({p.position})</option>)}
-                  </datalist>
                 </div>
               </div>
             )}
+            
+            {/* Datalist for player auto-complete (used by both scorers and cards) */}
+            <datalist id={`players-${selectedMatch.match_number}`}>
+              {squads.home.map(p => <option key={`h-${p.name}`} value={p.name}>{p.name} ({p.position})</option>)}
+              {squads.away.map(p => <option key={`a-${p.name}`} value={p.name}>{p.name} ({p.position})</option>)}
+            </datalist>
             
             <div className="border-t border-neutral-800 pt-4">
               <div className="flex justify-between items-center mb-3">
