@@ -1091,9 +1091,9 @@ def record_match_result(req: MatchRecordRequest, background_tasks: BackgroundTas
         top_score = pred_data["top_scorelines"][0]["score"].split("-")
         
         probs = pred_data["probabilities"]
-        if probs["home_win"] > probs["away_win"] and probs["home_win"] > probs["draw"]:
+        if int(top_score[0]) > int(top_score[1]):
             pred_winner = "H"
-        elif probs["away_win"] > probs["home_win"] and probs["away_win"] > probs["draw"]:
+        elif int(top_score[1]) > int(top_score[0]):
             pred_winner = "A"
         else:
             pred_winner = "D"
@@ -1176,7 +1176,8 @@ def get_model_accuracy():
         pred = predictions[m_id]
         valid_matches += 1
         
-        is_winner_correct = match['winner'] == pred['pred_winner']
+        implied_pred_winner = 'H' if pred['pred_home_score'] > pred['pred_away_score'] else ('A' if pred['pred_home_score'] < pred['pred_away_score'] else 'D')
+        is_winner_correct = match['winner'] == implied_pred_winner
         if is_winner_correct:
             winner_hits += 1
             
@@ -1337,9 +1338,9 @@ def seed_predictions(payload: dict = Depends(verify_jwt)):
             top_score = pred["top_scorelines"][0]["score"].split("-")
             probs = pred["probabilities"]
             
-            if probs["home_win"] > probs["away_win"] and probs["home_win"] > probs["draw"]:
+            if int(top_score[0]) > int(top_score[1]):
                 pred_winner = "H"
-            elif probs["away_win"] > probs["home_win"] and probs["away_win"] > probs["draw"]:
+            elif int(top_score[1]) > int(top_score[0]):
                 pred_winner = "A"
             else:
                 pred_winner = "D"
@@ -1526,7 +1527,8 @@ def get_timeline():
             event["pred_away_score"] = pred.get("pred_away_score")
             event["pred_winner"] = pred.get("pred_winner")
             
-            is_winner_correct = match['winner'] == pred['pred_winner']
+            implied_pred_winner = 'H' if pred['pred_home_score'] > pred['pred_away_score'] else ('A' if pred['pred_home_score'] < pred['pred_away_score'] else 'D')
+            is_winner_correct = match['winner'] == implied_pred_winner
             is_exact_score = match['home_score'] == pred['pred_home_score'] and match['away_score'] == pred['pred_away_score']
             
             actual_gd = match['home_score'] - match['away_score']
