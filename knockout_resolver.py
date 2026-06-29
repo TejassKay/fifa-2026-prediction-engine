@@ -161,7 +161,7 @@ def resolve_standings():
             sorted_teams = sort_tied_teams(teams_stats, completed_group_matches)
             resolved[f"Group {g} Winner"] = sorted_teams[0][0]
             resolved[f"Group {g} Runner-up"] = sorted_teams[1][0]
-            thirds.append({'team': sorted_teams[2][0], 'pts': sorted_teams[2][1]['pts'], 'gd': sorted_teams[2][1]['gd'], 'gf': sorted_teams[2][1]['gf']})
+            thirds.append({'team': sorted_teams[2][0], 'group': g, 'pts': sorted_teams[2][1]['pts'], 'gd': sorted_teams[2][1]['gd'], 'gf': sorted_teams[2][1]['gf']})
             
     if groups_finished == len(group_teams):
         # All 12 groups finished. Best 8 thirds advance.
