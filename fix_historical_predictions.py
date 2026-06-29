@@ -1,13 +1,17 @@
 import os
 import json
-import pandas as pd
+import csv
 from database import get_connection
 
 def fix_knockout_draw_predictions():
     # Load the CSV schedule to know which matches are knockouts
     try:
-        schedule = pd.read_csv("Dataset/world-cup-2026-schedule.csv")
-        knockout_matches = schedule[schedule["stage"] != "Group Stage"]["match_number"].astype(str).tolist()
+        knockout_matches = []
+        with open("Dataset/world-cup-2026-schedule.csv", "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                if row["stage"] != "Group Stage":
+                    knockout_matches.append(str(row["match_number"]))
     except Exception as e:
         print(f"Error loading schedule: {e}")
         return
