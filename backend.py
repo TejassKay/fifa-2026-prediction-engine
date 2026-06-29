@@ -793,7 +793,8 @@ def get_storylines():
 
 @app.get("/api/fixtures/upcoming")
 def get_upcoming_fixtures():
-    schedule = DATA.get("schedule", [])
+    import knockout_resolver
+    schedule = knockout_resolver.resolve_standings()
     if not schedule:
         return []
     
@@ -1387,7 +1388,8 @@ def trigger_simulation(background_tasks: BackgroundTasks, payload: dict = Depend
 
 @app.get("/api/schedule")
 def get_full_schedule():
-    schedule = DATA.get("schedule", [])
+    import knockout_resolver
+    schedule = knockout_resolver.resolve_standings()
     if not schedule:
         return []
         

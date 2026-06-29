@@ -168,7 +168,6 @@ def resolve_standings():
         thirds.sort(key=lambda x: (x['pts'], x['gd'], x['gf']), reverse=True)
         best_thirds = [t['team'] for t in thirds[:8]]
         
-        # Simplified third place assignment
         tba_thirds = [
             "Group A/B/C/D/F 3rd Place",
             "Group C/D/F/G/H 3rd Place",
@@ -180,9 +179,30 @@ def resolve_standings():
             "Group D/E/I/J/L 3rd Place"
         ]
         
+        # Hardcode user overrides
+        user_overrides = {
+            "Group A/E/H/I/J 3rd Place": "I", # M82: Senegal
+            "Group D/E/I/J/L 3rd Place": "L", # M87: Ghana
+            "Group E/F/G/I/J 3rd Place": "J", # M85: Algeria
+            "Group E/H/I/J/K 3rd Place": "K", # M80: Congo
+            "Group A/B/C/D/F 3rd Place": "D"  # M74: Paraguay
+        }
+        
+        group_to_team = {t['group']: t['team'] for t in thirds}
+        unassigned_thirds = best_thirds.copy()
+        
+        for tba_str, grp in user_overrides.items():
+            if grp in group_to_team:
+                team_name = group_to_team[grp]
+                resolved[tba_str] = team_name
+                tba_thirds.remove(tba_str)
+                if team_name in unassigned_thirds:
+                    unassigned_thirds.remove(team_name)
+                    
+        # Assign the rest sequentially (fallback)
         for i, tba_str in enumerate(tba_thirds):
-            if i < len(best_thirds):
-                resolved[tba_str] = best_thirds[i]
+            if i < len(unassigned_thirds):
+                resolved[tba_str] = unassigned_thirds[i]
                 
     # 4. Resolve further knockouts (e.g. "Winner Match 73")
     completed_lookup = {str(m['match_id']): m['winner'] for m in completed}
