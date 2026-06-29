@@ -69,9 +69,10 @@ export default function OddsHistoryPage() {
           </div>
         </header>
 
-        <div className="glass-panel p-6 h-[600px] w-full">
+        <div className="glass-panel p-6 h-[600px] w-full overflow-x-auto custom-scrollbar">
           {historyData.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%">
+            <div style={{ minWidth: `${Math.max(100, historyData.length * 2)}%`, height: '100%' }}>
+              <ResponsiveContainer width="100%" height="100%">
               <LineChart data={historyData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                 <XAxis 
                   dataKey="match_id" 
@@ -105,6 +106,7 @@ export default function OddsHistoryPage() {
                 ))}
               </LineChart>
             </ResponsiveContainer>
+            </div>
           ) : (
             <div className="flex items-center justify-center h-full text-neutral-500">
               No odds history available yet.

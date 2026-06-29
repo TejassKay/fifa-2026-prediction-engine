@@ -1620,19 +1620,35 @@ def api_get_odds_history():
     formatted = []
     last_odds = {}
     
+    eliminated = set()
+    
     for m_id in m_ids:
+        if m_id != "pre_tournament" and m_id.isdigit() and int(m_id) >= 73:
+            match = next((m for m in completed if str(m['match_id']) == m_id), None)
+            if match:
+                winner = match.get('winner')
+                if winner == 'H':
+                    eliminated.add(match.get('away_team'))
+                elif winner == 'A':
+                    eliminated.add(match.get('home_team'))
+
+        current_odds = {}
         if m_id in odds_data:
-            last_odds = odds_data[m_id]
+            current_odds = odds_data[m_id].copy()
+        elif last_odds:
+            current_odds = last_odds.copy()
+            
+        for t in eliminated:
+            if t in current_odds:
+                current_odds[t] = 0.0
+                
+        last_odds = current_odds
+        
+        if current_odds:
             formatted.append({
                 "match_id": m_id,
-                "odds": odds_data[m_id]
+                "odds": current_odds
             })
-        else:
-            if last_odds:
-                formatted.append({
-                    "match_id": m_id,
-                    "odds": last_odds
-                })
             
     return formatted
 
