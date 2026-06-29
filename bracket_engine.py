@@ -34,33 +34,54 @@ def build_bracket(groups_data, lambda_lookup, champs, live_schedule=None):
     thirds.sort(key=lambda x: (x.get("pts", 0), x.get("gd", 0), x.get("gf", 0), x.get("prob", 0)), reverse=True)
     best_thirds = thirds[:8]
     
-    unassigned_thirds = list(best_thirds)
-    def pop_third(allowed_groups):
-        for i, t in enumerate(unassigned_thirds):
-            if t["group"] in allowed_groups:
-                return unassigned_thirds.pop(i)["team"]
-        if unassigned_thirds:
-            return unassigned_thirds.pop(0)["team"]
-        return "TBD"
+    slot_reqs = [
+        ("M74", ["A", "B", "C", "D", "F"]),
+        ("M77", ["C", "D", "F", "G", "H"]),
+        ("M79", ["C", "E", "F", "H", "I"]),
+        ("M80", ["E", "H", "I", "J", "K"]),
+        ("M81", ["B", "E", "F", "I", "J"]),
+        ("M82", ["A", "E", "H", "I", "J"]),
+        ("M85", ["E", "F", "G", "I", "J"]),
+        ("M87", ["D", "E", "I", "J", "L"])
+    ]
+    
+    assignment = {}
+    used = [False] * 8
+    
+    def solve(slot_idx):
+        if slot_idx == 8: return True
+        slot_name, allowed = slot_reqs[slot_idx]
+        for i, t in enumerate(best_thirds):
+            if not used[i] and t["group"] in allowed:
+                assignment[slot_name] = t["team"]
+                used[i] = True
+                if solve(slot_idx + 1): return True
+                used[i] = False
+                if slot_name in assignment:
+                    del assignment[slot_name]
+        return False
+        
+    if not solve(0):
+        for i, (slot_name, _) in enumerate(slot_reqs):
+            assignment[slot_name] = best_thirds[i]["team"] if i < len(best_thirds) else "TBD"
+            
+    m_L1 = (seconds.get("A", "2A"), seconds.get("B", "2B"))
+    m_L2 = (firsts.get("E", "1E"), assignment["M74"])
+    m_L3 = (firsts.get("F", "1F"), seconds.get("C", "2C"))
+    m_L4 = (firsts.get("C", "1C"), seconds.get("F", "2F"))
+    m_L5 = (firsts.get("I", "1I"), assignment["M77"])
+    m_L6 = (seconds.get("E", "2E"), seconds.get("I", "2I"))
+    m_L7 = (firsts.get("A", "1A"), assignment["M79"])
+    m_L8 = (firsts.get("L", "1L"), assignment["M80"])
 
-    # Define the 16 R32 matches according to CSV
-    m_L1 = (seconds.get("A", "2A"), seconds.get("B", "2B"))              # M73
-    m_L2 = (firsts.get("E", "1E"), pop_third(["A", "B", "C", "D", "F"])) # M74
-    m_L3 = (firsts.get("F", "1F"), seconds.get("C", "2C"))               # M75
-    m_L4 = (firsts.get("C", "1C"), seconds.get("F", "2F"))               # M76
-    m_L5 = (firsts.get("I", "1I"), pop_third(["C", "D", "F", "G", "H"])) # M77
-    m_L6 = (seconds.get("E", "2E"), seconds.get("I", "2I"))              # M78
-    m_L7 = (firsts.get("A", "1A"), pop_third(["C", "E", "F", "H", "I"])) # M79
-    m_L8 = (firsts.get("L", "1L"), pop_third(["E", "H", "I", "J", "K"])) # M80
-
-    m_R1 = (firsts.get("D", "1D"), pop_third(["B", "E", "F", "I", "J"])) # M81
-    m_R2 = (firsts.get("G", "1G"), pop_third(["A", "E", "H", "I", "J"])) # M82
-    m_R3 = (seconds.get("K", "2K"), seconds.get("L", "2L"))              # M83
-    m_R4 = (firsts.get("H", "1H"), seconds.get("J", "2J"))               # M84
-    m_R5 = (firsts.get("B", "1B"), pop_third(["E", "F", "G", "I", "J"])) # M85
-    m_R6 = (firsts.get("J", "1J"), seconds.get("H", "2H"))               # M86
-    m_R7 = (firsts.get("K", "1K"), pop_third(["D", "E", "I", "J", "L"])) # M87
-    m_R8 = (seconds.get("D", "2D"), seconds.get("G", "2G"))              # M88
+    m_R1 = (firsts.get("D", "1D"), assignment["M81"])
+    m_R2 = (firsts.get("G", "1G"), assignment["M82"])
+    m_R3 = (seconds.get("K", "2K"), seconds.get("L", "2L"))
+    m_R4 = (firsts.get("H", "1H"), seconds.get("J", "2J"))
+    m_R5 = (firsts.get("B", "1B"), assignment["M85"])
+    m_R6 = (firsts.get("J", "1J"), seconds.get("H", "2H"))
+    m_R7 = (firsts.get("K", "1K"), assignment["M87"])
+    m_R8 = (seconds.get("D", "2D"), seconds.get("G", "2G"))
 
     r32_mapping = {
         73: m_L1, 74: m_L2, 75: m_L3, 76: m_L4,
@@ -94,19 +115,7 @@ def build_bracket(groups_data, lambda_lookup, champs, live_schedule=None):
     
     def simulate_match(t1, t2, round_key, match_number=None):
         live_m = live_dict.get(match_number, {}) if match_number else {}
-        if live_m.get('status') == 'completed':
-            live_a = live_m.get('team_a')
-            live_winner = live_m.get('winner')
-            # If the DB says home won, we use t1, else t2
-            resolved_winner = t1 if live_winner == live_a else t2
-            return {
-                "winner": resolved_winner,
-                "home": t1,
-                "away": t2,
-                "score_home": live_m.get('home_score', 0),
-                "score_away": live_m.get('away_score', 0)
-            }
-            
+        
         if (t1, t2) in lambda_lookup:
             lam1, lam2 = lambda_lookup[(t1, t2)]
         elif (t2, t1) in lambda_lookup:
@@ -120,14 +129,31 @@ def build_bracket(groups_data, lambda_lookup, champs, live_schedule=None):
         lam1_f = float(lam1)
         lam2_f = float(lam2)
         
-        if p1 >= p2:
-            sh = max(lam1_f, lam2_f)
-            sa = min(lam1_f, lam2_f)
-            return {"winner": t1, "home": t1, "away": t2, "score_home": round(sh, 1), "score_away": round(sa, 1)}
-        else:
-            sh = min(lam1_f, lam2_f)
-            sa = max(lam1_f, lam2_f)
-            return {"winner": t2, "home": t1, "away": t2, "score_home": round(sh, 1), "score_away": round(sa, 1)}
+        predicted_winner = t1 if p1 >= p2 else t2
+        sh = max(lam1_f, lam2_f) if p1 >= p2 else min(lam1_f, lam2_f)
+        sa = min(lam1_f, lam2_f) if p1 >= p2 else max(lam1_f, lam2_f)
+        
+        if live_m.get('status') == 'completed':
+            live_winner = live_m.get('winner')
+            live_a = live_m.get('team_a', t1)
+            live_b = live_m.get('team_b', t2)
+            
+            return {
+                "winner": live_winner,
+                "home": live_a,
+                "away": live_b,
+                "score_home": live_m.get('home_score', 0),
+                "score_away": live_m.get('away_score', 0),
+                "is_correct_prediction": (predicted_winner == live_winner)
+            }
+            
+        return {
+            "winner": predicted_winner,
+            "home": t1,
+            "away": t2,
+            "score_home": round(sh, 1),
+            "score_away": round(sa, 1)
+        }
 
     rounds = {"r32": [], "r16": [], "qf": [], "sf": [], "final": []}
     

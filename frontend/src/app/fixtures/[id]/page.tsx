@@ -208,11 +208,16 @@ export default function MatchHub() {
             <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="z-20 md:mx-[-4rem]">
                <div className="glass-panel border border-white/20 p-6 md:p-8 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col items-center min-w-[200px] md:min-w-[240px] backdrop-blur-xl bg-black/60">
                  <div className="text-neutral-400 font-bold uppercase tracking-widest text-[10px] mb-2 border-b border-white/10 pb-2 w-full text-center">Projected Output</div>
-                 <div className="flex flex-row items-center justify-center gap-4 text-6xl md:text-8xl font-black text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] mb-6 font-heading">
+                 <div className="flex flex-row items-center justify-center gap-4 text-6xl md:text-8xl font-black text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] mb-2 font-heading">
                    <span>{topScoreline.split("-")[0]}</span>
                    <span className="text-neutral-600">-</span>
                    <span>{topScoreline.split("-")[1]}</span>
                  </div>
+                 {topScoreline.split("-")[0] === topScoreline.split("-")[1] && matchData.stage !== "Group Stage" && (
+                   <div className="mb-4 bg-white/10 px-3 py-1 rounded-full text-xs font-bold text-white uppercase tracking-widest border border-white/20 text-center">
+                     {Number(homeProb) > Number(awayProb) ? home_team : away_team} advances (P)
+                   </div>
+                 )}
                  
                  {/* Segmented Flex-Bar */}
                  <div 
@@ -224,11 +229,13 @@ export default function MatchHub() {
                      style={{ width: `${homeProb}%` }}
                      onMouseMove={(e) => setTooltip({show: true, text: `${homeProb}% Home Win`, color: 'text-emerald-400', x: e.clientX, y: e.clientY})}
                    ></div>
-                   <div 
-                     className="bg-neutral-600/80 hover:bg-neutral-500 transition-colors" 
-                     style={{ width: `${drawProb}%` }}
-                     onMouseMove={(e) => setTooltip({show: true, text: `${drawProb}% Draw`, color: 'text-neutral-400', x: e.clientX, y: e.clientY})}
-                   ></div>
+                   {matchData.stage === "Group Stage" && (
+                     <div 
+                       className="bg-neutral-600/80 hover:bg-neutral-500 transition-colors" 
+                       style={{ width: `${drawProb}%` }}
+                       onMouseMove={(e) => setTooltip({show: true, text: `${drawProb}% Draw`, color: 'text-neutral-400', x: e.clientX, y: e.clientY})}
+                     ></div>
+                   )}
                    <div 
                      className="bg-rose-500/80 hover:bg-rose-400 transition-colors" 
                      style={{ width: `${awayProb}%` }}

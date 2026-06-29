@@ -52,6 +52,7 @@ app.add_middleware(
 class MatchRequest(BaseModel):
     home_team: str
     away_team: str
+    is_knockout: Optional[bool] = False
 
 class CardEvent(BaseModel):
     player_name: str
@@ -654,7 +655,17 @@ def predict_match(req: MatchRequest):
             else:
                 prob_d += p
                 
-    scorelines = sorted(scorelines, key=lambda x: x["prob"], reverse=True)[:5]
+    scorelines = sorted(scorelines, key=lambda x: x["prob"], reverse=True)
+    
+    # Redistribute draw probability if it's a knockout match
+    if getattr(req, 'is_knockout', False):
+        if prob_h > prob_a:
+            prob_h += prob_d
+        else:
+            prob_a += prob_d
+        prob_d = 0.0
+        
+    scorelines = scorelines[:5]
     
     return {
         "home_team": home,
@@ -847,7 +858,8 @@ def get_match_details(match_id: str):
     home = match["team_a"]
     away = match["team_b"]
     
-    req = MatchRequest(home_team=home, away_team=away)
+    is_ko = match.get("stage") != "Group Stage"
+    req = MatchRequest(home_team=home, away_team=away, is_knockout=is_ko)
     pred = predict_match(req)
     
     players = list(DATA.get("players", {}).values())
@@ -1073,20 +1085,24 @@ def get_finals():
 
 @app.post("/api/matches/record")
 def record_match_result(req: MatchRecordRequest, background_tasks: BackgroundTasks, payload: dict = Depends(verify_jwt)):
-    df_wc = pd.read_csv("Dataset/world-cup-2026-schedule.csv")
-    # match_number can be int or string, so safely compare
-    match_row = df_wc[df_wc['match_number'].astype(str) == str(req.match_id)]
+    # Try to find the match in the resolved live schedule first
+    sch_dict = {str(m.get("match_number")): m for m in DATA.get("schedule", [])}
+    m = sch_dict.get(str(req.match_id))
     
-    if match_row.empty:
-        return {"error": "Match not found in schedule"}
-        
-    m = match_row.iloc[0]
+    if not m:
+        # Fallback to CSV if not found
+        df_wc = pd.read_csv("Dataset/world-cup-2026-schedule.csv")
+        match_row = df_wc[df_wc['match_number'].astype(str) == str(req.match_id)]
+        if match_row.empty:
+            return {"error": "Match not found in schedule"}
+        m = match_row.iloc[0].to_dict()
     
     # Generate and save the prediction ONLY if it doesn't already exist
     # This prevents overwriting historical predictions when updating old scorecards
     existing_preds = database.get_predictions()
     if str(req.match_id) not in existing_preds:
-        req_pred = MatchRequest(home_team=m['team_a'], away_team=m['team_b'])
+        is_ko = m.get('stage') != 'Group Stage'
+        req_pred = MatchRequest(home_team=m['team_a'], away_team=m['team_b'], is_knockout=is_ko)
         pred_data = predict_match(req_pred)
         top_score = pred_data["top_scorelines"][0]["score"].split("-")
         
@@ -1167,6 +1183,7 @@ def get_model_accuracy():
     
     historical_timeline = []
     completed_sorted = sorted(completed, key=lambda x: str(x.get('date', '')))
+    sch_dict = {str(m.get("match_number")): m for m in DATA.get("schedule", [])}
     
     for match in completed_sorted:
         m_id = str(match['match_id'])
@@ -1209,8 +1226,12 @@ def get_model_accuracy():
                 logloss_sum += logloss
                 prob_assigned_to_actual = y_pred[i]
                 
+        sch_m = sch_dict.get(m_id, {})
+        resolved_a = sch_m.get("team_a", match['home_team'])
+        resolved_b = sch_m.get("team_b", match['away_team'])
+        
         historical_timeline.append({
-            "match": f"{match['home_team']} vs {match['away_team']}",
+            "match": f"{resolved_a} vs {resolved_b}",
             "prob_assigned": prob_assigned_to_actual,
             "is_winner_correct": is_winner_correct,
             "cumulative_accuracy": winner_hits / valid_matches
@@ -1491,6 +1512,7 @@ def get_timeline():
     
     events = []
     completed_sorted = sorted(completed, key=lambda x: str(x.get('date', '')), reverse=True)
+    sch_dict = {str(m.get("match_number")): m for m in DATA.get("schedule", [])}
     
     for i, match in enumerate(completed_sorted):
         m_id = str(match['match_id'])
@@ -1503,8 +1525,9 @@ def get_timeline():
         odds_before = odds_history.get(prev_m_id, {})
         odds_after = odds_history.get(m_id, {})
         
-        team_a = match.get("home_team")
-        team_b = match.get("away_team")
+        sch_m = sch_dict.get(m_id, {})
+        team_a = sch_m.get("team_a", match.get("home_team"))
+        team_b = sch_m.get("team_b", match.get("away_team"))
         
         event = {
             "match_id": m_id,

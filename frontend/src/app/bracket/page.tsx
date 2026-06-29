@@ -203,6 +203,9 @@ export default function BracketPage() {
           <span className={`font-heading uppercase tracking-wide truncate flex-1 ${m.winner === m.home ? 'font-black' : 'font-semibold'}`}>
             {m.home}
           </span>
+          {m.is_correct_prediction === true && m.winner === m.home && (
+            <span className="mr-2 text-[10px] drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]">✅</span>
+          )}
           <span className="font-mono font-bold">{m.score_home.toFixed(1)}</span>
         </div>
 
@@ -219,6 +222,9 @@ export default function BracketPage() {
           <span className={`font-heading uppercase tracking-wide truncate flex-1 ${m.winner === m.away ? 'font-black' : 'font-semibold'}`}>
             {m.away}
           </span>
+          {m.is_correct_prediction === true && m.winner === m.away && (
+            <span className="mr-2 text-[10px] drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]">✅</span>
+          )}
           <span className="font-mono font-bold">{m.score_away.toFixed(1)}</span>
         </div>
       </div>
