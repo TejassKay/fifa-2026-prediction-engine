@@ -243,7 +243,7 @@ def load_data():
                 "teams": team_data
             })
         DATA["structured_groups"] = structured_groups
-        DATA["schedule"] = schedule.to_dict(orient="records")
+        # Schedule was already loaded and resolved via knockout_resolver earlier
     except Exception as e:
         print(f"Could not load groups schedule: {e}")
         DATA["structured_groups"] = []
