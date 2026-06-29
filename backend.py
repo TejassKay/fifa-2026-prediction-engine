@@ -1634,6 +1634,56 @@ def api_get_odds_history():
             
     return formatted
 
+@app.get("/api/admin/fix_historical_draws")
+def fix_historical_draws():
+    import csv
+    from database import get_connection
+    try:
+        knockout_matches = []
+        with open("Dataset/world-cup-2026-schedule.csv", "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                if row["stage"] != "Group Stage":
+                    knockout_matches.append(str(row["match_number"]))
+                    
+        updates = 0
+        with get_connection() as (conn, db_type):
+            c = conn.cursor()
+            try:
+                c.execute("SELECT match_id, pred_prob_home, pred_prob_draw, pred_prob_away, pred_winner FROM predictions")
+                preds = c.fetchall()
+                
+                for row in preds:
+                    if db_type == "postgres":
+                        m_id = row['match_id']
+                        p_home = row['pred_prob_home']
+                        p_away = row['pred_prob_away']
+                        winner = row['pred_winner']
+                    else:
+                        m_id = row['match_id']
+                        p_home = row['pred_prob_home']
+                        p_away = row['pred_prob_away']
+                        winner = row['pred_winner']
+                    
+                    if str(m_id) in knockout_matches and winner == 'D':
+                        new_winner = 'H' if p_home >= p_away else 'A'
+                        if db_type == "postgres":
+                            c.execute("UPDATE predictions SET pred_winner = %s WHERE match_id = %s", (new_winner, m_id))
+                        else:
+                            c.execute("UPDATE predictions SET pred_winner = ? WHERE match_id = ?", (new_winner, m_id))
+                        updates += 1
+                conn.commit()
+            except Exception as e:
+                conn.rollback()
+                return {"status": "error", "message": str(e)}
+            finally:
+                c.close()
+                
+        return {"status": "success", "message": f"Fixed {updates} historical predictions"}
+    except Exception as e:
+        import traceback
+        return {"status": "error", "message": traceback.format_exc()}
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("backend:app", host="0.0.0.0", port=8000, reload=True)
