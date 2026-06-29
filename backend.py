@@ -1654,19 +1654,13 @@ def fix_historical_draws():
                 preds = c.fetchall()
                 
                 for row in preds:
-                    if db_type == "postgres":
-                        m_id = row['match_id']
-                        p_home = row['pred_prob_home']
-                        p_away = row['pred_prob_away']
-                        winner = row['pred_winner']
-                    else:
-                        m_id = row['match_id']
-                        p_home = row['pred_prob_home']
-                        p_away = row['pred_prob_away']
-                        winner = row['pred_winner']
+                    m_id = row[0]
+                    p_home = row[1]
+                    p_away = row[3]
+                    winner = row[4]
                     
                     if str(m_id) in knockout_matches and winner == 'D':
-                        new_winner = 'H' if p_home >= p_away else 'A'
+                        new_winner = 'H' if float(p_home) >= float(p_away) else 'A'
                         if db_type == "postgres":
                             c.execute("UPDATE predictions SET pred_winner = %s WHERE match_id = %s", (new_winner, m_id))
                         else:
