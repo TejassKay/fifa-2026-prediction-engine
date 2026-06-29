@@ -67,6 +67,19 @@ def build_bracket(groups_data, lambda_lookup, champs, live_schedule=None):
     if not solve(0):
         for i, (slot_name, _) in enumerate(slot_reqs):
             assignment[slot_name] = best_thirds[i]["team"] if i < len(best_thirds) else "TBD"
+
+    # Force user overrides
+    user_overrides = {
+        "M82": "I",
+        "M87": "L",
+        "M85": "J",
+        "M80": "K",
+        "M74": "D"
+    }
+    group_to_team = {t["group"]: t["team"] for t in thirds}
+    for slot, grp in user_overrides.items():
+        if grp in group_to_team:
+            assignment[slot] = group_to_team[grp]
             
     m_L1 = (seconds.get("A", "2A"), seconds.get("B", "2B"))
     m_L2 = (firsts.get("E", "1E"), assignment["M74"])

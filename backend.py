@@ -1660,11 +1660,17 @@ def fix_historical_draws():
                     winner = row[4]
                     
                     if str(m_id) in knockout_matches and winner == 'D':
-                        new_winner = 'H' if float(p_home) >= float(p_away) else 'A'
-                        if db_type == "postgres":
-                            c.execute("UPDATE predictions SET pred_winner = %s WHERE match_id = %s", (new_winner, m_id))
+                        if float(p_home) >= float(p_away):
+                            new_winner = 'H'
+                            new_h_score, new_a_score = 2, 1
                         else:
-                            c.execute("UPDATE predictions SET pred_winner = ? WHERE match_id = ?", (new_winner, m_id))
+                            new_winner = 'A'
+                            new_h_score, new_a_score = 1, 2
+                            
+                        if db_type == "postgres":
+                            c.execute("UPDATE predictions SET pred_winner = %s, pred_home_score = %s, pred_away_score = %s WHERE match_id = %s", (new_winner, new_h_score, new_a_score, m_id))
+                        else:
+                            c.execute("UPDATE predictions SET pred_winner = ?, pred_home_score = ?, pred_away_score = ? WHERE match_id = ?", (new_winner, new_h_score, new_a_score, m_id))
                         updates += 1
                 conn.commit()
             except Exception as e:
