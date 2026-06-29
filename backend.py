@@ -1652,7 +1652,7 @@ def fix_historical_draws():
         with get_connection() as (conn, db_type):
             c = conn.cursor()
             try:
-                c.execute("SELECT match_id, pred_prob_home, pred_prob_draw, pred_prob_away, pred_winner FROM predictions")
+                c.execute("SELECT match_id, pred_prob_home, pred_prob_draw, pred_prob_away, pred_winner, pred_home_score, pred_away_score FROM predictions")
                 preds = c.fetchall()
                 
                 for row in preds:
@@ -1660,8 +1660,10 @@ def fix_historical_draws():
                     p_home = row[1]
                     p_away = row[3]
                     winner = row[4]
+                    h_score = row[5]
+                    a_score = row[6]
                     
-                    if str(m_id) in knockout_matches and winner == 'D':
+                    if str(m_id) in knockout_matches and (winner == 'D' or (h_score == 1 and a_score == 1)):
                         if float(p_home) >= float(p_away):
                             new_winner = 'H'
                             new_h_score, new_a_score = 2, 1
