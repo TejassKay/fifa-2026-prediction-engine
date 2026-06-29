@@ -34,15 +34,16 @@ def build_bracket(groups_data, lambda_lookup, champs, live_schedule=None):
     thirds.sort(key=lambda x: (x.get("pts", 0), x.get("gd", 0), x.get("gf", 0), x.get("prob", 0)), reverse=True)
     best_thirds = thirds[:8]
     
+    # Reordered according to the desired matching (official FIFA lookup):
     slot_reqs = [
-        ("M74", ["A", "B", "C", "D", "F"]),
-        ("M77", ["C", "D", "F", "G", "H"]),
-        ("M79", ["C", "E", "F", "H", "I"]),
-        ("M80", ["E", "H", "I", "J", "K"]),
-        ("M81", ["B", "E", "F", "I", "J"]),
-        ("M82", ["A", "E", "H", "I", "J"]),
-        ("M85", ["E", "F", "G", "I", "J"]),
-        ("M87", ["D", "E", "I", "J", "L"])
+        ("M74", ["D", "F", "A", "B", "C"]),
+        ("M77", ["F", "G", "H", "C", "D"]),
+        ("M79", ["E", "I", "C", "F", "H"]),
+        ("M80", ["K", "J", "I", "H", "E"]),
+        ("M81", ["B", "J", "I", "F", "E"]),
+        ("M82", ["I", "J", "A", "E", "H"]),
+        ("M85", ["J", "I", "E", "F", "G"]),
+        ("M87", ["L", "J", "I", "E", "D"])
     ]
     
     assignment = {}
@@ -51,14 +52,16 @@ def build_bracket(groups_data, lambda_lookup, champs, live_schedule=None):
     def solve(slot_idx):
         if slot_idx == 8: return True
         slot_name, allowed = slot_reqs[slot_idx]
-        for i, t in enumerate(best_thirds):
-            if not used[i] and t["group"] in allowed:
-                assignment[slot_name] = t["team"]
-                used[i] = True
-                if solve(slot_idx + 1): return True
-                used[i] = False
-                if slot_name in assignment:
-                    del assignment[slot_name]
+        
+        for grp in allowed:
+            for i, t in enumerate(best_thirds):
+                if not used[i] and t["group"] == grp:
+                    assignment[slot_name] = t["team"]
+                    used[i] = True
+                    if solve(slot_idx + 1): return True
+                    used[i] = False
+                    if slot_name in assignment:
+                        del assignment[slot_name]
         return False
         
     if not solve(0):
