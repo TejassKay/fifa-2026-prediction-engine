@@ -71,7 +71,7 @@ export default function OddsHistoryPage() {
 
         <div className="glass-panel p-6 h-[600px] w-full overflow-x-auto custom-scrollbar">
           {historyData.length > 0 ? (
-            <div style={{ minWidth: `${Math.max(100, historyData.length * 2)}%`, height: '100%' }}>
+            <div style={{ minWidth: `${Math.max(1000, historyData.length * 40)}px`, height: '100%' }}>
               <ResponsiveContainer width="100%" height="100%">
               <LineChart data={historyData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                 <XAxis 
@@ -79,6 +79,7 @@ export default function OddsHistoryPage() {
                   stroke="#525252" 
                   tick={{ fill: '#a3a3a3', fontSize: 12 }} 
                   tickFormatter={(val, idx) => val === 'pre_tournament' ? 'Pre' : `${idx}`} 
+                  interval={0}
                 />
                 <YAxis stroke="#525252" tick={{ fill: '#a3a3a3', fontSize: 12 }} tickFormatter={(val) => `${(val * 100).toFixed(0)}%`} />
                 <Tooltip 
