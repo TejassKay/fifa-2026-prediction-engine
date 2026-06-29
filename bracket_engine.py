@@ -35,15 +35,16 @@ def build_bracket(groups_data, lambda_lookup, champs, live_schedule=None):
     best_thirds = thirds[:8]
     
     # Reordered according to the desired matching (official FIFA lookup):
+    # HARDCODED user overrides for specific slots to guarantee placement
     slot_reqs = [
-        ("M74", ["D", "F", "A", "B", "C"]),
-        ("M77", ["F", "G", "H", "C", "D"]),
-        ("M79", ["E", "I", "C", "F", "H"]),
-        ("M80", ["K", "J", "I", "H", "E"]),
-        ("M81", ["B", "J", "I", "F", "E"]),
-        ("M82", ["I", "J", "A", "E", "H"]),
-        ("M85", ["J", "I", "E", "F", "G"]),
-        ("M87", ["L", "J", "I", "E", "D"])
+        ("M74", ["D"]), # User override for Paraguay
+        ("M77", ["F", "G", "H", "C", "D", "A", "B", "E", "I", "J", "K", "L"]), # allow anything as fallback
+        ("M79", ["E", "I", "C", "F", "H", "A", "B", "D", "G", "J", "K", "L"]), 
+        ("M80", ["K"]), # User override for Congo
+        ("M81", ["B", "J", "I", "F", "E", "A", "C", "D", "G", "H", "K", "L"]), 
+        ("M82", ["I"]), # User override for Senegal
+        ("M85", ["J"]), # User override for Algeria
+        ("M87", ["L"])  # User override for Ghana
     ]
     
     assignment = {}
@@ -65,21 +66,30 @@ def build_bracket(groups_data, lambda_lookup, champs, live_schedule=None):
         return False
         
     if not solve(0):
-        for i, (slot_name, _) in enumerate(slot_reqs):
-            assignment[slot_name] = best_thirds[i]["team"] if i < len(best_thirds) else "TBD"
-
-    # Force user overrides
-    user_overrides = {
-        "M82": "I",
-        "M87": "L",
-        "M85": "J",
-        "M80": "K",
-        "M74": "D"
-    }
-    group_to_team = {t["group"]: t["team"] for t in thirds}
-    for slot, grp in user_overrides.items():
-        if grp in group_to_team:
-            assignment[slot] = group_to_team[grp]
+        # Fallback if the user's desired teams didn't actually qualify
+        # We will just assign sequentially, but avoid duplicates
+        assigned_teams = set()
+        user_overrides = {"M82": "I", "M87": "L", "M85": "J", "M80": "K", "M74": "D"}
+        group_to_team = {t["group"]: t["team"] for t in thirds}
+        
+        # First assign overrides
+        for slot in ["M74", "M77", "M79", "M80", "M81", "M82", "M85", "M87"]:
+            if slot in user_overrides and user_overrides[slot] in group_to_team:
+                team = group_to_team[user_overrides[slot]]
+                assignment[slot] = team
+                assigned_teams.add(team)
+                
+        # Then assign remaining from best_thirds
+        rem_idx = 0
+        for slot in ["M74", "M77", "M79", "M80", "M81", "M82", "M85", "M87"]:
+            if slot not in assignment:
+                while rem_idx < len(best_thirds) and best_thirds[rem_idx]["team"] in assigned_teams:
+                    rem_idx += 1
+                if rem_idx < len(best_thirds):
+                    assignment[slot] = best_thirds[rem_idx]["team"]
+                    assigned_teams.add(best_thirds[rem_idx]["team"])
+                else:
+                    assignment[slot] = "TBD"
             
     m_L1 = (seconds.get("A", "2A"), seconds.get("B", "2B"))
     m_L2 = (firsts.get("E", "1E"), assignment["M74"])
