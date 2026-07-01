@@ -211,7 +211,20 @@ def resolve_standings():
         mid = str(row['match_number'])
         if mid in completed_lookup:
             winner_char = completed_lookup[mid] # 'H' or 'A' or 'D'
-            actual_winner = row['team_a'] if winner_char == 'H' else row['team_b']
+            
+            ta = row['team_a']
+            tb = row['team_b']
+            
+            if ta in resolved:
+                ta = resolved[ta]
+            if tb in resolved:
+                tb = resolved[tb]
+                
+            actual_winner = ta if winner_char == 'H' else tb
+            actual_loser = tb if winner_char == 'H' else ta
+            
+            resolved[f"Match {mid} Winner"] = actual_winner
+            resolved[f"Match {mid} Loser"] = actual_loser
             resolved[f"Winner Match {mid}"] = actual_winner
             
     completed_details = {str(m['match_id']): m for m in completed}
@@ -229,13 +242,9 @@ def resolve_standings():
         
         if ta in resolved:
             m_dict['team_a'] = resolved[ta]
-        elif ta and isinstance(ta, str) and ta.startswith("Winner Match"):
-            m_dict['team_a'] = resolved.get(ta, ta)
             
         if tb in resolved:
             m_dict['team_b'] = resolved[tb]
-        elif tb and isinstance(tb, str) and tb.startswith("Winner Match"):
-            m_dict['team_b'] = resolved.get(tb, tb)
             
         # Update status if completed
         mid = str(m_dict['match_number'])
