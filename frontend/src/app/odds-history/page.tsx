@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Activity } from "lucide-react";
+import { getTeamColorHex } from "@/lib/flags";
 
 export default function OddsHistoryPage() {
   const [historyData, setHistoryData] = useState<any[]>([]);
@@ -27,12 +28,20 @@ export default function OddsHistoryPage() {
           formatted.push(entry);
         }
         
+        const firstSnapshot: any = formatted[0] || {};
         const lastSnapshot: any = formatted[formatted.length - 1] || {};
-        const topTeams = Array.from(allTeams)
+        
+        const topLast = Array.from(allTeams)
           .sort((a, b) => (lastSnapshot[b] || 0) - (lastSnapshot[a] || 0))
           .slice(0, 10);
           
-        setTeams(topTeams);
+        const topFirst = Array.from(allTeams)
+          .sort((a, b) => (firstSnapshot[b] || 0) - (firstSnapshot[a] || 0))
+          .slice(0, 10);
+          
+        const combinedTeams = Array.from(new Set([...topLast, ...topFirst]));
+          
+        setTeams(combinedTeams);
         setHistoryData(formatted);
         setLoading(false);
       })
@@ -99,7 +108,7 @@ export default function OddsHistoryPage() {
                     key={team} 
                     type="monotone" 
                     dataKey={team} 
-                    stroke={colors[i % colors.length]} 
+                    stroke={getTeamColorHex(team)} 
                     strokeWidth={3}
                     dot={false}
                     activeDot={{ r: 6 }}

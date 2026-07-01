@@ -1661,7 +1661,7 @@ def api_get_odds_history():
         eliminated_manual = ["Germany", "Netherlands"]
         for t in eliminated_manual:
             if t in current_odds:
-                del current_odds[t]
+                current_odds[t] = 0.0
 
         # Normalize remaining probabilities
         total_prob = sum(current_odds.values())
