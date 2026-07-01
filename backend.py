@@ -332,6 +332,22 @@ def get_champions():
         c_copy["delta"] = float(delta)
         enriched.append(c_copy)
         
+    eliminated_teams = ["Germany", "Netherlands"]
+    enriched = [c for c in enriched if c["team"] not in eliminated_teams]
+    
+    total_prob = sum(c.get("champion_probability", 0) for c in enriched)
+    if total_prob > 0:
+        for c in enriched:
+            c["champion_probability"] /= total_prob
+            c["previous_probability"] /= total_prob
+            c["delta"] = c["champion_probability"] - c["previous_probability"]
+            if c["delta"] > 0.0001:
+                c["trend"] = "up"
+            elif c["delta"] < -0.0001:
+                c["trend"] = "down"
+            else:
+                c["trend"] = "flat"
+
     # Sort teams dynamically by current probability
     enriched.sort(key=lambda x: x["champion_probability"], reverse=True)
     return enriched
