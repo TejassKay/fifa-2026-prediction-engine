@@ -265,58 +265,28 @@ def load_data():
 def get_champions():
     champs = DATA.get("champions", [])
     
-    odds_data = database.get_odds_history()
-    completed = database.get_completed_matches()
+    history = api_get_odds_history()
+    latest_odds = {}
+    prev_odds = {}
     
-    schedule = DATA.get("schedule", [])
-    schedule_dict = {str(m.get("match_number")): m for m in schedule}
-    
-    def get_ts(m):
-        m_id = str(m['match_id'])
-        sch_m = schedule_dict.get(m_id, {})
-        date_str = sch_m.get("date", m.get("date", "2026-06-11"))
-        time_str = sch_m.get("time_et", "00:00")
-        try:
-            from datetime import datetime, timedelta
-            from zoneinfo import ZoneInfo
-            dt = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
-            if time_str == "00:00":
-                dt += timedelta(days=1)
-            return int(dt.replace(tzinfo=ZoneInfo("US/Eastern")).timestamp())
-        except Exception:
-            return int(m_id) if m_id.isdigit() else 0
-            
-    completed_sorted = sorted(completed, key=get_ts)
-    
-    m_ids = ["pre_tournament"] + [str(m['match_id']) for m in completed_sorted]
-    
-    # Include stray match_ids that are in odds_data but missing from m_ids
-    stray_ids = [m for m in odds_data.keys() if m not in m_ids]
-    m_ids.extend(stray_ids)
-    
-    available_snaps = [m for m in m_ids if m in odds_data]
-    
-    latest_id = None
-    prev_id = None
-    if len(available_snaps) >= 2:
-        latest_id = available_snaps[-1]
-        prev_id = available_snaps[-2]
-    elif len(available_snaps) == 1:
-        latest_id = available_snaps[0]
-        prev_id = available_snaps[0]
+    if len(history) >= 2:
+        latest_odds = history[-1]["odds"]
+        prev_odds = history[-2]["odds"]
+    elif len(history) == 1:
+        latest_odds = history[0]["odds"]
+        prev_odds = history[0]["odds"]
         
     enriched = []
     for c in champs:
         team = c["team"]
         
-        # Overlay latest probabilities from Postgres to bypass stale local CSVs
-        current_prob = c["champion_probability"]
-        if latest_id and latest_id in odds_data and team in odds_data[latest_id]:
-            current_prob = odds_data[latest_id][team]
-            
-        prev_prob = current_prob
-        if prev_id and prev_id in odds_data and team in odds_data[prev_id]:
-            prev_prob = odds_data[prev_id][team]
+        # Overlay latest probabilities from history
+        if history and team in latest_odds:
+            current_prob = latest_odds[team]
+            prev_prob = prev_odds.get(team, current_prob)
+        else:
+            current_prob = c.get("champion_probability", 0.0)
+            prev_prob = current_prob
             
         delta = current_prob - prev_prob
         
@@ -331,22 +301,6 @@ def get_champions():
             c_copy["trend"] = "flat"
         c_copy["delta"] = float(delta)
         enriched.append(c_copy)
-        
-    eliminated_teams = ["Germany", "Netherlands"]
-    enriched = [c for c in enriched if c["team"] not in eliminated_teams]
-    
-    total_prob = sum(c.get("champion_probability", 0) for c in enriched)
-    if total_prob > 0:
-        for c in enriched:
-            c["champion_probability"] /= total_prob
-            c["previous_probability"] /= total_prob
-            c["delta"] = c["champion_probability"] - c["previous_probability"]
-            if c["delta"] > 0.0001:
-                c["trend"] = "up"
-            elif c["delta"] < -0.0001:
-                c["trend"] = "down"
-            else:
-                c["trend"] = "flat"
 
     # Sort teams dynamically by current probability
     enriched.sort(key=lambda x: x["champion_probability"], reverse=True)
