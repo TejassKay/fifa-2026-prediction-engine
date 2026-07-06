@@ -22,9 +22,9 @@ export default function Home() {
       fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/intelligence/finals`).then(r => r.json()),
       fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/stats/odds-history`).then(r => r.json())
     ]).then(([champs, ups, fins, hist]) => {
-      const sortedChamps = champs.sort((a: any, b: any) => b.champion_probability - a.champion_probability);
-      setChampion(sortedChamps[0]);
-      setTopContenders(sortedChamps.slice(0, 10));
+      // Use the pre-sorted list from the backend which includes advanced tie-breakers
+      setChampion(champs[0]);
+      setTopContenders(champs.slice(0, 10));
       
       setUpsets(ups.slice(0, 2));
       setFinals(fins.slice(0, 1));

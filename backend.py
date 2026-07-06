@@ -302,8 +302,14 @@ def get_champions():
         c_copy["delta"] = float(delta)
         enriched.append(c_copy)
 
-    # Sort teams dynamically by current probability
-    enriched.sort(key=lambda x: x["champion_probability"], reverse=True)
+    pre_odds = history[0]["odds"] if history else {}
+
+    # Sort teams dynamically by current probability, breaking ties with previous and pre-tournament odds
+    enriched.sort(key=lambda x: (
+        x["champion_probability"], 
+        x["previous_probability"], 
+        pre_odds.get(x["team"], 0.0)
+    ), reverse=True)
     return enriched
 
 def resolve_team_name(team_id: str) -> str:

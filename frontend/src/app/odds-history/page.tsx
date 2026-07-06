@@ -31,12 +31,20 @@ export default function OddsHistoryPage() {
         const firstSnapshot: any = formatted[0] || {};
         const lastSnapshot: any = formatted[formatted.length - 1] || {};
         
+        const prevSnapshot: any = formatted[formatted.length - 2] || {};
+        
         const topLast = Array.from(allTeams)
-          .sort((a, b) => (lastSnapshot[b] || 0) - (lastSnapshot[a] || 0))
+          .sort((a: any, b: any) => {
+            const lastDiff = (lastSnapshot[b] || 0) - (lastSnapshot[a] || 0);
+            if (lastDiff !== 0) return lastDiff;
+            const prevDiff = (prevSnapshot[b] || 0) - (prevSnapshot[a] || 0);
+            if (prevDiff !== 0) return prevDiff;
+            return (firstSnapshot[b] || 0) - (firstSnapshot[a] || 0);
+          })
           .slice(0, 10);
           
         const topFirst = Array.from(allTeams)
-          .sort((a, b) => (firstSnapshot[b] || 0) - (firstSnapshot[a] || 0))
+          .sort((a: any, b: any) => (firstSnapshot[b] || 0) - (firstSnapshot[a] || 0))
           .slice(0, 10);
           
         const combinedTeams = Array.from(new Set([...topLast, ...topFirst]));
