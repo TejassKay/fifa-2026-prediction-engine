@@ -22,9 +22,10 @@ export default function Home() {
       fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/intelligence/finals`).then(r => r.json()),
       fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/stats/odds-history`).then(r => r.json())
     ]).then(([champs, ups, fins, hist]) => {
-      // Use the pre-sorted list from the backend which includes advanced tie-breakers
-      setChampion(champs[0]);
-      setTopContenders(champs.slice(0, 10));
+      // Filter out ancient knocked out teams (like Iran) that have < 0.5% win probability
+      const activeChamps = champs.filter((c: any) => c.champion_probability >= 0.005 || c.previous_probability >= 0.005);
+      setChampion(activeChamps[0]);
+      setTopContenders(activeChamps.slice(0, 10));
       
       setUpsets(ups.slice(0, 2));
       setFinals(fins.slice(0, 1));

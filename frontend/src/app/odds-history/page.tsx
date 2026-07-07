@@ -31,10 +31,10 @@ export default function OddsHistoryPage() {
         
         const firstSnapshot: any = formatted[0] || {};
         const lastSnapshot: any = formatted[formatted.length - 1] || {};
-        
         const prevSnapshot: any = formatted[formatted.length - 2] || {};
         
         const topLast = Array.from(allTeams)
+          .filter(team => (lastSnapshot[team] || 0) >= 0.005 || (prevSnapshot[team] || 0) >= 0.005)
           .sort((a: any, b: any) => {
             const lastDiff = (lastSnapshot[b] || 0) - (lastSnapshot[a] || 0);
             if (lastDiff !== 0) return lastDiff;
@@ -45,6 +45,7 @@ export default function OddsHistoryPage() {
           .slice(0, 10);
           
         const topFirst = Array.from(allTeams)
+          .filter(team => (firstSnapshot[team] || 0) >= 0.005)
           .sort((a: any, b: any) => (firstSnapshot[b] || 0) - (firstSnapshot[a] || 0))
           .slice(0, 10);
           
