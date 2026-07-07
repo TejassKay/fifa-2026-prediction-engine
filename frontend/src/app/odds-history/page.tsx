@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Activity } from "lucide-react";
-import { getTeamColorHex } from "@/lib/flags";
+import { getTeamColorHex, getFlagUrl } from "@/lib/flags";
 
 export default function OddsHistoryPage() {
   const [historyData, setHistoryData] = useState<any[]>([]);
   const [teams, setTeams] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hoveredTeam, setHoveredTeam] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/stats/odds-history`)
@@ -100,15 +101,29 @@ export default function OddsHistoryPage() {
                 />
                 <YAxis stroke="#525252" tick={{ fill: '#a3a3a3', fontSize: 12 }} tickFormatter={(val) => `${(val * 100).toFixed(0)}%`} />
                 <Tooltip 
-                  contentStyle={{ backgroundColor: '#171717', borderColor: '#262626', color: '#fff' }}
-                  itemStyle={{ fontWeight: 'bold' }}
-                  formatter={(value: any) => [`${(Number(value) * 100).toFixed(1)}%`]}
-                  labelFormatter={(label, payload) => {
-                    const idx = historyData.findIndex(d => d.match_id === label);
-                    return label === 'pre_tournament' ? 'Pre-Tournament' : `Match ${idx}`;
+                  content={({ active, payload, label }: any) => {
+                    if (active && payload && payload.length) {
+                      const idx = historyData.findIndex(d => d.match_id === label);
+                      const labelText = label === 'pre_tournament' ? 'Pre-Tournament' : `Match ${idx}`;
+                      const itemsToShow = hoveredTeam 
+                        ? payload.filter((p: any) => p.dataKey === hoveredTeam) 
+                        : payload;
+                      return (
+                        <div className="bg-[#171717] border border-[#262626] p-3 rounded shadow-xl">
+                          <p className="text-neutral-400 text-xs mb-2 font-bold">{labelText}</p>
+                          {itemsToShow.map((p: any) => (
+                            <div key={p.dataKey} className="flex items-center gap-2 mb-1">
+                               <img src={getFlagUrl(p.dataKey)} className="w-4 h-3 object-cover rounded" />
+                               <span style={{ color: p.color }} className="font-bold text-sm">
+                                 {p.dataKey}: {(Number(p.value) * 100).toFixed(1)}%
+                               </span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    }
+                    return null;
                   }}
-                  labelStyle={{ display: 'none' }}
-                  itemSorter={(item) => -(item.value as number)}
                 />
                 <Legend iconType="circle" />
                 {teams.map((team, i) => (
@@ -117,9 +132,12 @@ export default function OddsHistoryPage() {
                     type="monotone" 
                     dataKey={team} 
                     stroke={getTeamColorHex(team)} 
-                    strokeWidth={3}
+                    strokeWidth={hoveredTeam === team ? 5 : 3}
+                    strokeOpacity={hoveredTeam && hoveredTeam !== team ? 0.2 : 1}
                     dot={false}
                     activeDot={{ r: 6 }}
+                    onMouseEnter={() => setHoveredTeam(team)}
+                    onMouseLeave={() => setHoveredTeam(null)}
                   />
                 ))}
               </LineChart>
