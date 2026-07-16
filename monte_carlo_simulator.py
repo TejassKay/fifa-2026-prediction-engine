@@ -285,72 +285,135 @@ def simulate_tournament(groups, group_matches, lambda_lookup, shootout_lookup, c
             team_dict[ht]['pts'] += 1
             team_dict[at]['pts'] += 1
             
-    # Resolve Groups
-    winners = []
-    runners_up = []
+    # Resolve Groups and map to bracket names
+    winners = {}
+    runners_up = {}
     thirds = []
     
     for g, standings in group_standings.items():
         res = resolve_group_stage(standings)
-        winners.append(res[0]['team'])
-        runners_up.append(res[1]['team'])
-        thirds.append(res[2])
+        winners[g] = res[0]['team']
+        runners_up[g] = res[1]['team']
+        thirds.append({'team': res[2]['team'], 'group': g, 'pts': res[2]['pts'], 'gd': res[2]['gd'], 'gf': res[2]['gf']})
         
-    best_thirds = map_best_thirds(thirds)
+    thirds.sort(key=lambda x: (x['pts'], x['gd'], x['gf'], np.random.random()), reverse=True)
+    best_thirds = [x['team'] for x in thirds[:8]]
     
-    # R32 logic (simplified bracket assignment)
-    r32_teams = winners + runners_up + best_thirds
-    # Random shuffle bracket assignment to avoid complex FIFA lookup table for thirds
-    np.random.shuffle(r32_teams)
-    r32_matches = [(r32_teams[i], r32_teams[i+1]) for i in range(0, 32, 2)]
-    
-    for t in r32_teams:
+    # Map teams to slots
+    resolved_slots = {}
+    for g, t in winners.items():
+        resolved_slots[f"Group {g} Winner"] = t
+        progress[t] = "Round of 32"
+    for g, t in runners_up.items():
+        resolved_slots[f"Group {g} Runner-up"] = t
+        progress[t] = "Round of 32"
+    for t in best_thirds:
         progress[t] = "Round of 32"
         
-    def play_knockout(matchups, next_round_name):
-        winners = []
-        for ht, at in matchups:
-            if (ht, at) in completed_matches_lookup:
-                hg, ag = completed_matches_lookup[(ht, at)]
-                if hg > ag: w = ht
-                elif ag > hg: w = at
-                else: w = ht # Edge case: DB should store winner if draw, but simplified here
-            else:
-                lam_h, lam_a = lambda_lookup[(ht, at)]
-                hg = np.random.poisson(lam_h)
-                ag = np.random.poisson(lam_a)
+    tba_thirds = [
+        "Group A/B/C/D/F 3rd Place", "Group C/D/F/G/H 3rd Place", "Group C/E/F/H/I 3rd Place",
+        "Group E/H/I/J/K 3rd Place", "Group B/E/F/I/J 3rd Place", "Group A/E/H/I/J 3rd Place",
+        "Group E/F/G/I/J 3rd Place", "Group D/E/I/J/L 3rd Place"
+    ]
+    
+    user_overrides = {
+        "Group A/E/H/I/J 3rd Place": "I", "Group D/E/I/J/L 3rd Place": "L",
+        "Group E/F/G/I/J 3rd Place": "J", "Group E/H/I/J/K 3rd Place": "K",
+        "Group A/B/C/D/F 3rd Place": "D"
+    }
+    
+    group_to_team = {t['group']: t['team'] for t in thirds}
+    unassigned_thirds = best_thirds.copy()
+    
+    for tba_str, grp in user_overrides.items():
+        if grp in group_to_team:
+            team_name = group_to_team[grp]
+            resolved_slots[tba_str] = team_name
+            tba_thirds.remove(tba_str)
+            if team_name in unassigned_thirds:
+                unassigned_thirds.remove(team_name)
                 
-                if hg > ag:
-                    w = ht
-                elif ag > hg:
-                    w = at
-                else:
-                    # Extra Time
-                    hge = np.random.poisson(lam_h / 3.0)
-                    age = np.random.poisson(lam_a / 3.0)
-                    if hge > age: w = ht
-                    elif age > hge: w = at
-                    else:
-                        # Pens
-                        w = ht if np.random.random() < shootout_lookup[(ht, at)] else at
-            winners.append(w)
-            progress[w] = next_round_name
-        return winners
+    for i, tba_str in enumerate(tba_thirds):
+        if i < len(unassigned_thirds):
+            resolved_slots[tba_str] = unassigned_thirds[i]
+            
+    # Fixed FIFA Bracket (Matches 73-104)
+    KO_BRACKET = {
+        73: ("Group A Runner-up", "Group B Runner-up", "Round of 16"),
+        74: ("Group E Winner", "Group A/B/C/D/F 3rd Place", "Round of 16"),
+        75: ("Group F Winner", "Group C Runner-up", "Round of 16"),
+        76: ("Group C Winner", "Group F Runner-up", "Round of 16"),
+        77: ("Group I Winner", "Group C/D/F/G/H 3rd Place", "Round of 16"),
+        78: ("Group E Runner-up", "Group I Runner-up", "Round of 16"),
+        79: ("Group A Winner", "Group C/E/F/H/I 3rd Place", "Round of 16"),
+        80: ("Group L Winner", "Group E/H/I/J/K 3rd Place", "Round of 16"),
+        81: ("Group D Winner", "Group B/E/F/I/J 3rd Place", "Round of 16"),
+        82: ("Group G Winner", "Group A/E/H/I/J 3rd Place", "Round of 16"),
+        83: ("Group K Runner-up", "Group L Runner-up", "Round of 16"),
+        84: ("Group H Winner", "Group J Runner-up", "Round of 16"),
+        85: ("Group B Winner", "Group E/F/G/I/J 3rd Place", "Round of 16"),
+        86: ("Group J Winner", "Group H Runner-up", "Round of 16"),
+        87: ("Group K Winner", "Group D/E/I/J/L 3rd Place", "Round of 16"),
+        88: ("Group D Runner-up", "Group G Runner-up", "Round of 16"),
         
-    r16_teams = play_knockout(r32_matches, "Round of 16")
-    r16_matches = [(r16_teams[i], r16_teams[i+1]) for i in range(0, 16, 2)]
-    
-    qf_teams = play_knockout(r16_matches, "Quarter Finals")
-    qf_matches = [(qf_teams[i], qf_teams[i+1]) for i in range(0, 8, 2)]
-    
-    sf_teams = play_knockout(qf_matches, "Semi Finals")
-    sf_matches = [(sf_teams[i], sf_teams[i+1]) for i in range(0, 4, 2)]
-    
-    final_teams = play_knockout(sf_matches, "Final")
-    final_match = [(final_teams[0], final_teams[1])]
-    
-    play_knockout(final_match, "Champion")[0]
-    
+        89: ("Match 74 Winner", "Match 77 Winner", "Quarter Finals"),
+        90: ("Match 73 Winner", "Match 75 Winner", "Quarter Finals"),
+        91: ("Match 76 Winner", "Match 78 Winner", "Quarter Finals"),
+        92: ("Match 79 Winner", "Match 80 Winner", "Quarter Finals"),
+        93: ("Match 83 Winner", "Match 84 Winner", "Quarter Finals"),
+        94: ("Match 81 Winner", "Match 82 Winner", "Quarter Finals"),
+        95: ("Match 86 Winner", "Match 88 Winner", "Quarter Finals"),
+        96: ("Match 85 Winner", "Match 87 Winner", "Quarter Finals"),
+        
+        97: ("Match 89 Winner", "Match 90 Winner", "Semi Finals"),
+        98: ("Match 93 Winner", "Match 94 Winner", "Semi Finals"),
+        99: ("Match 91 Winner", "Match 92 Winner", "Semi Finals"),
+        100: ("Match 95 Winner", "Match 96 Winner", "Semi Finals"),
+        
+        101: ("Match 97 Winner", "Match 98 Winner", "Final"),
+        102: ("Match 99 Winner", "Match 100 Winner", "Final"),
+        
+        103: ("Match 101 Loser", "Match 102 Loser", "Third Place"),
+        104: ("Match 101 Winner", "Match 102 Winner", "Champion")
+    }
+
+    def sim_match(ht, at):
+        if (ht, at) in completed_matches_lookup:
+            hg, ag = completed_matches_lookup[(ht, at)]
+            if hg > ag: return ht, at
+            elif ag > hg: return at, ht
+            else: return ht, at # Edge case fallback
+            
+        lam_h, lam_a = lambda_lookup.get((ht, at), (1.0, 1.0))
+        hg = np.random.poisson(lam_h)
+        ag = np.random.poisson(lam_a)
+        
+        if hg > ag: return ht, at
+        elif ag > hg: return at, ht
+        else:
+            hge = np.random.poisson(lam_h / 3.0)
+            age = np.random.poisson(lam_a / 3.0)
+            if hge > age: return ht, at
+            elif age > hge: return at, ht
+            else:
+                p_pen = shootout_lookup.get((ht, at), 0.5)
+                return (ht, at) if np.random.random() < p_pen else (at, ht)
+
+    for mid in range(73, 105):
+        if mid == 103: continue # Skip third place match in progression mapping
+        
+        ta_slot, tb_slot, next_round = KO_BRACKET[mid]
+        
+        ht = resolved_slots.get(ta_slot, ta_slot)
+        at = resolved_slots.get(tb_slot, tb_slot)
+        
+        winner, loser = sim_match(ht, at)
+        
+        resolved_slots[f"Match {mid} Winner"] = winner
+        resolved_slots[f"Match {mid} Loser"] = loser
+        
+        progress[winner] = next_round
+        
     return progress
 
 # ------------------------------------------------------------------
@@ -440,6 +503,10 @@ def main():
     
     # XGBoost importance
     importances = model_h.feature_importances_
+    if hasattr(model_h, 'feature_names_in_'):
+        features = model_h.feature_names_in_
+    else:
+        features = features[:len(importances)]
     df_imp = pd.DataFrame({'feature': features, 'importance': importances}).sort_values('importance', ascending=False)
     
     md_imp = "# Feature Importance Analysis (XGBoost)\n\n"
