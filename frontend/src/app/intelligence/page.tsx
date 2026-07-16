@@ -93,7 +93,7 @@ export default function IntelligenceCenter() {
                        </svg>
                        <span className="text-4xl font-black text-indigo-300 drop-shadow-md">{(finals[0].probability * 100).toFixed(1)}%</span>
                     </div>
-                    <span className="text-xs text-indigo-200/50 font-bold uppercase tracking-widest text-center">Mathematical Likelihood</span>
+                    <span className="text-xs text-indigo-200/50 font-bold uppercase tracking-widest text-center">Chance to Meet</span>
                   </div>
 
                   {/* Team B */}

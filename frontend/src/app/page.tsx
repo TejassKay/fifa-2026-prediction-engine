@@ -126,7 +126,7 @@ export default function Home() {
                     <Trophy className="w-4 h-4"/> Predicted Final
                   </span>
                   <span className="bg-indigo-500/20 text-indigo-400 text-[10px] px-2 py-1 rounded font-bold">
-                    {(finals[0].probability * 100).toFixed(1)}% PROB
+                    {(finals[0].probability * 100).toFixed(1)}% CHANCE TO MEET
                   </span>
                </div>
                
@@ -185,7 +185,10 @@ export default function Home() {
                           strokeDashoffset={150.8 - (upset.upset_prob * 150.8)} strokeLinecap="round" 
                        />
                      </svg>
-                     <span className="text-sm font-black text-rose-500">{(upset.upset_prob * 100).toFixed(0)}%</span>
+                     <div className="flex flex-col items-center">
+                       <span className="text-sm font-black text-rose-500">{(upset.upset_prob * 100).toFixed(0)}%</span>
+                       <span className="text-[7px] text-rose-500/80 font-bold tracking-widest mt-[2px] uppercase">Win Prob</span>
+                     </div>
                 </div>
                 <p className="text-xs font-medium text-neutral-500 italic leading-snug">"{upset.reason}"</p>
               </div>

@@ -810,7 +810,8 @@ def get_upcoming_fixtures():
     
     results = []
     for match in matches:
-        req = MatchRequest(home_team=match["team_a"], away_team=match["team_b"])
+        is_ko = match.get("stage") != "Group Stage"
+        req = MatchRequest(home_team=match["team_a"], away_team=match["team_b"], is_knockout=is_ko)
         pred = predict_match(req)
         results.append({
             "id": str(match.get("match_number", "1")),
@@ -979,40 +980,47 @@ def get_team_identity(team: str):
 
 @app.get("/api/intelligence/upsets")
 def get_upsets():
-    groups = DATA.get("structured_groups", [])
+    champs = DATA.get("champions", [])
+    if not champs:
+        return []
+        
     upsets = []
+    # Compare the top 12 teams to find high-profile upsets
+    top_teams = champs[:12]
     
-    for g in groups:
-        teams = g["teams"]
-        for i in range(len(teams)):
-            for j in range(i+1, len(teams)):
-                t1 = teams[i]["team"]
-                t2 = teams[j]["team"]
-                e1 = teams[i]["elo"]
-                e2 = teams[j]["elo"]
+    for i in range(len(top_teams)):
+        for j in range(i+1, len(top_teams)):
+            t1 = top_teams[i]["team"]
+            t2 = top_teams[j]["team"]
+            
+            # Use the official simulation logic (knockout rules for high profile matches)
+            req = MatchRequest(home_team=t1, away_team=t2, is_knockout=True)
+            pred = predict_match(req)
+            probs = pred["probabilities"]
+            
+            # t1 is the favorite generally (higher in champs list)
+            prob_1_wins = probs["home_win"]
+            prob_2_wins = probs["away_win"]
+            
+            # If the underdog (t2) has a decent chance to win outright
+            if 0.35 < prob_2_wins < 0.60:
+                upsets.append({
+                    "match": f"{t2} vs {t1}",
+                    "underdog": t2,
+                    "favorite": t1,
+                    "upset_prob": float(prob_2_wins),
+                    "reason": f"{t2}'s gritty playstyle gives them a solid {int(prob_2_wins*100)}% chance to shock the heavily favored {t1}."
+                })
+            # Conversely, if t1 is somehow the underdog in the matchup simulation
+            elif 0.35 < prob_1_wins < 0.60 and prob_1_wins < prob_2_wins:
+                upsets.append({
+                    "match": f"{t1} vs {t2}",
+                    "underdog": t1,
+                    "favorite": t2,
+                    "upset_prob": float(prob_1_wins),
+                    "reason": f"{t1}'s gritty playstyle gives them a solid {int(prob_1_wins*100)}% chance to shock the heavily favored {t2}."
+                })
                 
-                prob_1_wins = 1 / (1 + 10**((e2 - e1)/400))
-                prob_2_wins = 1 - prob_1_wins
-                
-                if e1 - e2 > 100:
-                    if prob_2_wins > 0.15:
-                        upsets.append({
-                            "match": f"{t2} vs {t1}",
-                            "underdog": t2,
-                            "favorite": t1,
-                            "upset_prob": float(prob_2_wins),
-                            "reason": f"{t2}'s gritty playstyle gives them a strong {int(prob_2_wins*100)}% chance to shock the heavily favored {t1}."
-                        })
-                elif e2 - e1 > 100:
-                    if prob_1_wins > 0.15:
-                        upsets.append({
-                            "match": f"{t1} vs {t2}",
-                            "underdog": t1,
-                            "favorite": t2,
-                            "upset_prob": float(prob_1_wins),
-                            "reason": f"{t1}'s gritty playstyle gives them a strong {int(prob_1_wins*100)}% chance to shock the heavily favored {t2}."
-                        })
-                        
     upsets = sorted(upsets, key=lambda x: x["upset_prob"], reverse=True)[:5]
     return upsets
 
