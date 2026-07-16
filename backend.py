@@ -1597,13 +1597,10 @@ def api_get_odds_history():
     
     m_ids = ["pre_tournament"] + [str(m['match_id']) for m in completed_sorted]
     
-    # If there are any stray match_ids in odds_data not in m_ids, add them and re-sort properly!
-    stray_ids = [m for m in odds_data.keys() if m not in m_ids]
-    if stray_ids:
-        all_ids = [m for m in m_ids if m != "pre_tournament"] + stray_ids
-        # Sort all numeric/timestamp-able IDs properly so a stray future match doesn't get stuck at the end
-        all_ids = sorted(all_ids, key=lambda x: get_ts({'match_id': x}))
-        m_ids = ["pre_tournament"] + all_ids
+    # We explicitly do NOT include stray match_ids from odds_data here.
+    # If an old simulation run saved a snapshot for a future match (e.g. 104),
+    # including it would cause it to be sorted at the end and permanently override
+    # the latest legitimate snapshot. We only track legitimately completed matches.
     
     formatted = []
     last_odds = {}
