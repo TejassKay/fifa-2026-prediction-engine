@@ -252,7 +252,7 @@ def map_best_thirds(thirds):
     thirds.sort(key=lambda x: (x['pts'], x['gd'], x['gf'], np.random.random()), reverse=True)
     return [x['team'] for x in thirds[:8]]
 
-def simulate_tournament(groups, group_matches, lambda_lookup, shootout_lookup, completed_matches_lookup):
+def simulate_tournament(groups, group_matches, lambda_lookup, shootout_lookup, completed_matches_lookup, completed_match_ids):
     progress = {t: "Group Stage" for g in groups.values() for t in g}
     
     group_standings = {g: [{'team': t, 'pts':0, 'gd':0, 'gf':0, 'ga':0} for t in teams] for g, teams in groups.items()}
@@ -378,17 +378,6 @@ def simulate_tournament(groups, group_matches, lambda_lookup, shootout_lookup, c
     }
 
     def sim_match(ht, at):
-        if (ht, at) in completed_matches_lookup:
-            hg, ag = completed_matches_lookup[(ht, at)]
-            if hg > ag: return ht, at
-            elif ag > hg: return at, ht
-            else: return ht, at # Edge case fallback
-        elif (at, ht) in completed_matches_lookup:
-            hg, ag = completed_matches_lookup[(at, ht)]
-            if hg > ag: return at, ht
-            elif ag > hg: return ht, at
-            else: return at, ht
-            
         lam_h, lam_a = lambda_lookup.get((ht, at), (1.0, 1.0))
         if (ht, at) not in lambda_lookup and (at, ht) in lambda_lookup:
             lam_a, lam_h = lambda_lookup[(at, ht)]
@@ -416,6 +405,19 @@ def simulate_tournament(groups, group_matches, lambda_lookup, shootout_lookup, c
         
         ta_slot, tb_slot, next_round = KO_BRACKET[mid]
         
+        # If this match was already played in reality, force the actual winner
+        if str(mid) in completed_match_ids:
+            m_record = completed_match_ids[str(mid)]
+            winner_char = m_record['winner']
+            # Home team wins if 'H', else away team
+            winner = m_record['home_team'] if winner_char == 'H' else m_record['away_team']
+            loser = m_record['away_team'] if winner_char == 'H' else m_record['home_team']
+            
+            resolved_slots[f"Match {mid} Winner"] = winner
+            resolved_slots[f"Match {mid} Loser"] = loser
+            progress[winner] = next_round
+            continue
+        
         ht = resolved_slots.get(ta_slot, ta_slot)
         at = resolved_slots.get(tb_slot, tb_slot)
         
@@ -441,6 +443,7 @@ def main():
     try:
         completed = database.get_completed_matches()
         completed_matches_lookup = {(r['home_team'], r['away_team']): (r['home_score'], r['away_score']) for r in completed}
+        completed_match_ids = {str(r['match_id']): r for r in completed}
         if completed:
             completed_sorted = sorted(completed, key=lambda x: str(x.get('date', '')))
             last_match_id = str(completed_sorted[-1]['match_id'])
@@ -449,6 +452,7 @@ def main():
     except Exception as e:
         print("Database not found or error loading matches:", e)
         completed_matches_lookup = {}
+        completed_match_ids = {}
         last_match_id = "pre_tournament"
     
     # Create group structures
@@ -473,7 +477,7 @@ def main():
     
     # We will simulate natively. Python loop is fast enough for 100k if simple.
     for _ in tqdm(range(N_SIMS)):
-        prog = simulate_tournament(groups, group_matches, lambda_lookup, shootout_lookup, completed_matches_lookup)
+        prog = simulate_tournament(groups, group_matches, lambda_lookup, shootout_lookup, completed_matches_lookup, completed_match_ids)
         for t, stage in prog.items():
             results_agg[t][stage] += 1
             
