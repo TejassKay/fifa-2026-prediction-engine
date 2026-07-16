@@ -383,8 +383,15 @@ def simulate_tournament(groups, group_matches, lambda_lookup, shootout_lookup, c
             if hg > ag: return ht, at
             elif ag > hg: return at, ht
             else: return ht, at # Edge case fallback
+        elif (at, ht) in completed_matches_lookup:
+            hg, ag = completed_matches_lookup[(at, ht)]
+            if hg > ag: return at, ht
+            elif ag > hg: return ht, at
+            else: return at, ht
             
         lam_h, lam_a = lambda_lookup.get((ht, at), (1.0, 1.0))
+        if (ht, at) not in lambda_lookup and (at, ht) in lambda_lookup:
+            lam_a, lam_h = lambda_lookup[(at, ht)]
         hg = np.random.poisson(lam_h)
         ag = np.random.poisson(lam_a)
         
@@ -396,7 +403,12 @@ def simulate_tournament(groups, group_matches, lambda_lookup, shootout_lookup, c
             if hge > age: return ht, at
             elif age > hge: return at, ht
             else:
-                p_pen = shootout_lookup.get((ht, at), 0.5)
+                if (ht, at) in shootout_lookup:
+                    p_pen = shootout_lookup[(ht, at)]
+                elif (at, ht) in shootout_lookup:
+                    p_pen = 1.0 - shootout_lookup[(at, ht)]
+                else:
+                    p_pen = 0.5
                 return (ht, at) if np.random.random() < p_pen else (at, ht)
 
     for mid in range(73, 105):
